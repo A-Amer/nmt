@@ -4,7 +4,7 @@ from onmt.decoders.transformer import TransformerDecoder
 
 
 
-str2dec = {"rnn": StdRNNDecoder, "ifrnn": InputFeedRNNDecoder,
+str2dec = {"rnn": InputFeedRNNDecoder, "ifrnn": InputFeedRNNDecoder,
             "transformer": TransformerDecoder}
 
 __all__ = ["DecoderBase", "TransformerDecoder",
