@@ -75,16 +75,12 @@ class RNNDecoderBase(DecoderBase):
        copy_attn (bool): setup a separate copy attention mechanism
        dropout (float) : dropout value for :class:`torch.nn.Dropout`
        embeddings (onmt.modules.Embeddings): embedding module to use
-       reuse_copy_attn (bool): reuse the attention for copying
-       copy_attn_type (str): The copy attention style. See
-        :class:`~onmt.modules.GlobalAttention`.
+
     """
 
     def __init__(self, rnn_type, bidirectional_encoder, num_layers,
                  hidden_size, attn_type="general", attn_func="softmax",
-                 coverage_attn=False, context_gate=None,
-                 copy_attn=False, dropout=0.0, embeddings=None,
-                 reuse_copy_attn=False, copy_attn_type="general"):
+                 dropout=0.0, embeddings=None):
         super(RNNDecoderBase, self).__init__(
             attentional=attn_type != "none" and attn_type is not None)
 
@@ -104,39 +100,12 @@ class RNNDecoderBase(DecoderBase):
                                    num_layers=num_layers,
                                    dropout=dropout)
 
-        # Set up the context gate.
-        self.context_gate = None
-        if context_gate is not None:
-            self.context_gate = context_gate_factory(
-                context_gate, self._input_size,
-                hidden_size, hidden_size, hidden_size
-            )
 
-        # Set up the standard attention.
-        self._coverage = coverage_attn
-        if not self.attentional:
-            if self._coverage:
-                raise ValueError("Cannot use coverage term with no attention.")
-            self.attn = None
-        else:
-            self.attn = GlobalAttention(
-                hidden_size, coverage=coverage_attn,
-                attn_type=attn_type, attn_func=attn_func
-            )
+        self.attn = GlobalAttention(
+            hidden_size, coverage=coverage_attn,
+            attn_type=attn_type, attn_func=attn_func
+        )
 
-        if copy_attn and not reuse_copy_attn:
-            if copy_attn_type == "none" or copy_attn_type is None:
-                raise ValueError(
-                    "Cannot use copy_attn with copy_attn_type none")
-            self.copy_attn = GlobalAttention(
-                hidden_size, attn_type=copy_attn_type, attn_func=attn_func
-            )
-        else:
-            self.copy_attn = None
-
-        self._reuse_copy_attn = reuse_copy_attn and copy_attn
-        if self._reuse_copy_attn and not self.attentional:
-            raise ValueError("Cannot reuse copy attention with no attention.")
 
     @classmethod
     def from_opt(cls, opt, embeddings):
@@ -148,13 +117,8 @@ class RNNDecoderBase(DecoderBase):
             opt.dec_rnn_size,
             opt.global_attention,
             opt.global_attention_function,
-            opt.coverage_attn,
-            opt.context_gate,
-            opt.copy_attn,
             opt.dropout,
-            embeddings,
-            opt.reuse_copy_attn,
-            opt.copy_attn_type)
+            embeddings)
 
     def init_state(self, src, memory_bank, encoder_final):
         """Initialize decoder state with last state of the encoder."""
@@ -177,13 +141,10 @@ class RNNDecoderBase(DecoderBase):
         h_size = (batch_size, self.hidden_size)
         self.state["input_feed"] = \
             self.state["hidden"][0].data.new(*h_size).zero_().unsqueeze(0)
-        self.state["coverage"] = None
 
     def map_state(self, fn):
         self.state["hidden"] = tuple(fn(h, 1) for h in self.state["hidden"])
         self.state["input_feed"] = fn(self.state["input_feed"], 1)
-        if self._coverage and self.state["coverage"] is not None:
-            self.state["coverage"] = fn(self.state["coverage"], 1)
 
     def detach_state(self):
         self.state["hidden"] = tuple(h.detach() for h in self.state["hidden"])
@@ -216,9 +177,7 @@ class RNNDecoderBase(DecoderBase):
             dec_state = (dec_state,)
         self.state["hidden"] = dec_state
         self.state["input_feed"] = dec_outs[-1].unsqueeze(0)
-        self.state["coverage"] = None
-        if "coverage" in attns:
-            self.state["coverage"] = attns["coverage"][-1].unsqueeze(0)
+        
 
         # Concatenates sequence of tensors along a new dimension.
         # NOTE: v0.3 to 0.4: dec_outs / attns[*] may not be list
@@ -233,93 +192,6 @@ class RNNDecoderBase(DecoderBase):
                     attns[k] = torch.stack(attns[k])
         return dec_outs, attns
 
-
-class StdRNNDecoder(RNNDecoderBase):
-    """Standard fully batched RNN decoder with attention.
-
-    Faster implementation, uses CuDNN for implementation.
-    See :class:`~onmt.decoders.decoder.RNNDecoderBase` for options.
-
-
-    Based around the approach from
-    "Neural Machine Translation By Jointly Learning To Align and Translate"
-    :cite:`Bahdanau2015`
-
-
-    Implemented without input_feeding and currently with no `coverage_attn`
-    or `copy_attn` support.
-    """
-
-    def _run_forward_pass(self, tgt, memory_bank, memory_lengths=None):
-        """
-        Private helper for running the specific RNN forward pass.
-        Must be overriden by all subclasses.
-
-        Args:
-            tgt (LongTensor): a sequence of input tokens tensors
-                ``(len, batch, nfeats)``.
-            memory_bank (FloatTensor): output(tensor sequence) from the
-                encoder RNN of size ``(src_len, batch, hidden_size)``.
-            memory_lengths (LongTensor): the source memory_bank lengths.
-
-        Returns:
-            (Tensor, List[FloatTensor], Dict[str, List[FloatTensor]):
-
-            * dec_state: final hidden state from the decoder.
-            * dec_outs: an array of output of every time
-              step from the decoder.
-            * attns: a dictionary of different
-              type of attention Tensor array of every time
-              step from the decoder.
-        """
-
-        assert self.copy_attn is None  # TODO, no support yet.
-        assert not self._coverage  # TODO, no support yet.
-
-        attns = {}
-        emb = self.embeddings(tgt)
-
-        if isinstance(self.rnn, nn.GRU):
-            rnn_output, dec_state = self.rnn(emb, self.state["hidden"][0])
-        else:
-            rnn_output, dec_state = self.rnn(emb, self.state["hidden"])
-
-        # Check
-        tgt_len, tgt_batch, _ = tgt.size()
-        output_len, output_batch, _ = rnn_output.size()
-        aeq(tgt_len, output_len)
-        aeq(tgt_batch, output_batch)
-
-        # Calculate the attention.
-        if not self.attentional:
-            dec_outs = rnn_output
-        else:
-            dec_outs, p_attn = self.attn(
-                rnn_output.transpose(0, 1).contiguous(),
-                memory_bank.transpose(0, 1),
-                memory_lengths=memory_lengths
-            )
-            attns["std"] = p_attn
-
-        # Calculate the context gate.
-        if self.context_gate is not None:
-            dec_outs = self.context_gate(
-                emb.view(-1, emb.size(2)),
-                rnn_output.view(-1, rnn_output.size(2)),
-                dec_outs.view(-1, dec_outs.size(2))
-            )
-            dec_outs = dec_outs.view(tgt_len, tgt_batch, self.hidden_size)
-
-        dec_outs = self.dropout(dec_outs)
-        return dec_state, dec_outs, attns
-
-    def _build_rnn(self, rnn_type, **kwargs):
-        rnn, _ = rnn_factory(rnn_type, **kwargs)
-        return rnn
-
-    @property
-    def _input_size(self):
-        return self.embeddings.embedding_size
 
 
 class InputFeedRNNDecoder(RNNDecoderBase):
@@ -366,18 +238,13 @@ class InputFeedRNNDecoder(RNNDecoderBase):
         attns = {}
         if self.attn is not None:
             attns["std"] = []
-        if self.copy_attn is not None or self._reuse_copy_attn:
-            attns["copy"] = []
-        if self._coverage:
-            attns["coverage"] = []
+    
 
         emb = self.embeddings(tgt)
         assert emb.dim() == 3  # len x batch x embedding_dim
 
         dec_state = self.state["hidden"]
-        coverage = self.state["coverage"].squeeze(0) \
-            if self.state["coverage"] is not None else None
-
+        
         # Input feed concatenates hidden state with
         # input at every time step.
         for emb_t in emb.split(1):
@@ -391,35 +258,16 @@ class InputFeedRNNDecoder(RNNDecoderBase):
                 attns["std"].append(p_attn)
             else:
                 decoder_output = rnn_output
-            if self.context_gate is not None:
-                # TODO: context gate should be employed
-                # instead of second RNN transform.
-                decoder_output = self.context_gate(
-                    decoder_input, rnn_output, decoder_output
-                )
+           
             decoder_output = self.dropout(decoder_output)
             input_feed = decoder_output
 
             dec_outs += [decoder_output]
 
-            # Update the coverage attention.
-            if self._coverage:
-                coverage = p_attn if coverage is None else p_attn + coverage
-                attns["coverage"] += [coverage]
-
-            if self.copy_attn is not None:
-                _, copy_attn = self.copy_attn(
-                    decoder_output, memory_bank.transpose(0, 1))
-                attns["copy"] += [copy_attn]
-            elif self._reuse_copy_attn:
-                attns["copy"] = attns["std"]
-
         return dec_state, dec_outs, attns
 
     def _build_rnn(self, rnn_type, input_size,
                    hidden_size, num_layers, dropout):
-        assert rnn_type != "SRU", "SRU doesn't support input feed! " \
-            "Please set -input_feed 0!"
         stacked_cell = StackedLSTM if rnn_type == "LSTM" else StackedGRU
         return stacked_cell(num_layers, input_size, hidden_size, dropout)
 
