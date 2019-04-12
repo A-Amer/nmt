@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 
 from onmt.decoders.decoder import DecoderBase
-from onmt.modules import MultiHeadedAttention, AverageAttention
+from onmt.modules import MultiHeadedAttention
 from onmt.modules.position_ffn import PositionwiseFeedForward
 
 
@@ -30,9 +30,7 @@ class TransformerDecoderLayer(nn.Module):
             self.self_attn = MultiHeadedAttention(
                 heads, d_model, dropout=dropout,
                 max_relative_positions=max_relative_positions)
-        elif self_attn_type == "average":
-            self.self_attn = AverageAttention(d_model, dropout=dropout)
-
+       
         self.context_attn = MultiHeadedAttention(
             heads, d_model, dropout=dropout)
         self.feed_forward = PositionwiseFeedForward(d_model, d_ff, dropout)
@@ -73,9 +71,6 @@ class TransformerDecoderLayer(nn.Module):
                                          mask=dec_mask,
                                          layer_cache=layer_cache,
                                          type="self")
-        elif isinstance(self.self_attn, AverageAttention):
-            query, attn = self.self_attn(input_norm, mask=dec_mask,
-                                         layer_cache=layer_cache, step=step)
 
         query = self.drop(query) + inputs
 
@@ -226,9 +221,6 @@ class TransformerDecoder(DecoderBase):
 
         for i, layer in enumerate(self.transformer_layers):
             layer_cache = {"memory_keys": None, "memory_values": None}
-            if isinstance(layer.self_attn, AverageAttention):
-                layer_cache["prev_g"] = torch.zeros((batch_size, 1, depth))
-            else:
-                layer_cache["self_keys"] = None
-                layer_cache["self_values"] = None
+            layer_cache["self_keys"] = None
+            layer_cache["self_values"] = None
             self.state["cache"]["layer_{}".format(i)] = layer_cache
