@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from onmt.modules.sparse_activations import sparsemax
 from onmt.utils.misc import aeq, sequence_mask
 
 # This class is mainly used by decoder.py for RNNs but also
@@ -63,7 +64,7 @@ class GlobalAttention(nn.Module):
        dim (int): dimensionality of query and key
        coverage (bool): use coverage term
        attn_type (str): type of attention to use, options [dot,general,mlp]
-       attn_func (str): attention function to use, options [softmax]
+       attn_func (str): attention function to use, options [softmax,sparsemax]
 
     """
 
@@ -76,7 +77,7 @@ class GlobalAttention(nn.Module):
             "Please select a valid attention type (got {:s}).".format(
                 attn_type))
         self.attn_type = attn_type
-        assert attn_func in ["softmax"], (
+        assert attn_func in ["softmax", "sparsemax"], (
             "Please select a valid attention function.")
         self.attn_func = attn_func
 
@@ -163,16 +164,7 @@ class GlobalAttention(nn.Module):
         aeq(batch, batch_)
         aeq(dim, dim_)
         aeq(self.dim, dim)
-        if coverage is not None:
-            batch_, source_l_ = coverage.size()
-            aeq(batch, batch_)
-            aeq(source_l, source_l_)
-
-        if coverage is not None:
-            cover = coverage.view(-1).unsqueeze(1)
-            memory_bank += self.linear_cover(cover).view_as(memory_bank)
-            memory_bank = torch.tanh(memory_bank)
-
+        
         # compute attention scores, as in Luong et al.
         align = self.score(source, memory_bank)
 
@@ -181,7 +173,11 @@ class GlobalAttention(nn.Module):
             mask = mask.unsqueeze(1)  # Make it broadcastable.
             align.masked_fill_(1 - mask, -float('inf'))
 
-        align_vectors = F.softmax(align.view(batch*target_l, source_l), -1)
+        # Softmax or sparsemax to normalize attention weights
+        if self.attn_func == "softmax":
+            align_vectors = F.softmax(align.view(batch*target_l, source_l), -1)
+        else:
+            align_vectors = sparsemax(align.view(batch*target_l, source_l), -1)
         align_vectors = align_vectors.view(batch, target_l, source_l)
 
         # each context vector c_t is the weighted average
