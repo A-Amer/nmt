@@ -102,7 +102,7 @@ def main(opt, device_id):
     valid_iter = build_dataset_iter(
         "valid", fields, opt, is_train=False)
 
-    if opt.gpu:
+    if opt.gpu>-1:
         logger.info('Starting training on GPU: %s' % 0)
     else:
         logger.info('Starting training on CPU, could be very slow')
