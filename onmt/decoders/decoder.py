@@ -102,7 +102,7 @@ class RNNDecoderBase(DecoderBase):
 
 
         self.attn = GlobalAttention(
-            hidden_size, coverage=coverage_attn,
+            hidden_size,
             attn_type=attn_type, attn_func=attn_func
         )
 
