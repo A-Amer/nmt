@@ -73,7 +73,7 @@ class ArgumentParser(cfargparse.ArgumentParser):
 
     @classmethod
     def validate_train_opts(cls, opt):
-        if torch.cuda.is_available() and not opt.gpu:
+        if torch.cuda.is_available() and opt.gpu<0:
             logger.info("WARNING: You have a CUDA device, \
                         should run with -gpu")
 
