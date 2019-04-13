@@ -270,6 +270,8 @@ def train_opts(parser):
     group.add('--seed', '-seed', type=int, default=-1,
               help="Random seed used for the experiments "
                    "reproducibility.")
+    group.add('--shuffle', '-shuffle',  action='store_true',
+               help="Shuffle data")
 
     # Init options
     group = parser.add_argument_group('Initialization')
