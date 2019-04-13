@@ -313,8 +313,7 @@ class Trainer(object):
 
             # 4. Update the parameters and statistics.
 
-                self.optim.step()
-
+            self.optim.step()
             # If truncated, don't backprop fully.
             # TO CHECK
             # if dec_state is not None:
