@@ -519,7 +519,6 @@ class DatasetLazyIter(object):
         self.is_train = is_train
         self.repeat = repeat
         self.num_batches_multiple = num_batches_multiple
-        self.shuffle=shuffle
 
     def _iter_dataset(self, path):
         cur_dataset = torch.load(path)
@@ -535,7 +534,7 @@ class DatasetLazyIter(object):
             train=self.is_train,
             sort=False,
             sort_within_batch=True,
-            repeat=False,shuffle=self.shuffle
+            repeat=False,shuffle=None
         )
         for batch in cur_iter:
             yield batch
