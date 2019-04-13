@@ -602,7 +602,7 @@ def build_dataset_iter(corpus_type, fields, opt, is_train=True):
     batch_fn = max_tok_len if is_train and opt.batch_type == "tokens" else None
     batch_size_multiple = 8 if opt.model_dtype == "fp16" else 1
 
-    device = "cuda" if opt.gpu else "cpu"
+    device = "cuda" if opt.gpu>-1 else "cpu"
 
     return DatasetLazyIter(
         dataset_paths,
