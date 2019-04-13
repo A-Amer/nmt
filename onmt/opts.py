@@ -238,24 +238,6 @@ def preprocess_opts(parser):
               choices=StoreLoggingLevelAction.CHOICES,
               default="0")
 
-    # Options most relevant to speech
-    group = parser.add_argument_group('Speech')
-    group.add('--sample_rate', '-sample_rate', type=int, default=16000,
-              help="Sample rate.")
-    group.add('--window_size', '-window_size', type=float, default=.02,
-              help="Window size for spectrogram in seconds.")
-    group.add('--window_stride', '-window_stride', type=float, default=.01,
-              help="Window stride for spectrogram in seconds.")
-    group.add('--window', '-window', default='hamming',
-              help="Window type for spectrogram generation.")
-
-    # Option most relevant to image input
-    group.add('--image_channel_size', '-image_channel_size',
-              type=int, default=3,
-              choices=[3, 1],
-              help="Using grayscale image can training "
-                   "model faster and smaller")
-
 
 def train_opts(parser):
     """ Training and saving options """
@@ -282,6 +264,8 @@ def train_opts(parser):
               help="Type of torch distributed backend")
     group.add('--gpu_verbose_level', '-gpu_verbose_level', default=0, type=int,
               help="Gives more info on each process per GPU.")
+    group.add('--gpu', '-gpu', type=int, default=-1,
+              help="Device to run on")
 
     group.add('--seed', '-seed', type=int, default=-1,
               help="Random seed used for the experiments "
