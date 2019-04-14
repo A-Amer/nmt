@@ -52,8 +52,8 @@ class RNNEncoder(EncoderBase):
             opt.brnn,
             opt.enc_layers,
             opt.enc_rnn_size,
-            opt.dropout,
             opt.single_enc_double_dec_layers,
+            opt.dropout,
             embeddings)
 
     def forward(self, src, lengths=None):
