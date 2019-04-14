@@ -138,9 +138,8 @@ class RNNDecoderBase(DecoderBase):
 
         # Init the input feed.
         batch_size = self.state["hidden"][0].size(1)
-        print(self.state["hidden"][0].size(1))
+        print(memory_bank)
         h_size = (batch_size, self.hidden_size)
-        print(h_size)
         self.state["input_feed"] = \
             self.state["hidden"][0].data.new(*h_size).zero_().unsqueeze(0)
 
@@ -252,7 +251,6 @@ class InputFeedRNNDecoder(RNNDecoderBase):
         for emb_t in emb.split(1):
             decoder_input = torch.cat([emb_t.squeeze(0), input_feed], 1)
             rnn_output, dec_state = self.rnn(decoder_input, dec_state)
-            print(memory_bank.transpose(0, 1).size())
             if self.attentional:
                 decoder_output, p_attn = self.attn(
                     rnn_output,
