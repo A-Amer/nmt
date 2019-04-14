@@ -5,7 +5,7 @@ from onmt.encoders.rnn_encoder import RNNEncoder
 
 
 
-str2enc = {"rnn": RNNEncoder, "brnn": RNNEncoder,
+str2enc = {"rnn": RNNEncoder, "brnn": RNNEncoder,"gnmt":GoogleEncoder,
            "transformer": TransformerEncoder}
 
 __all__ = ["EncoderBase", "TransformerEncoder", "RNNEncoder", "str2enc"]
