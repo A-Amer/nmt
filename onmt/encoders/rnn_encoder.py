@@ -23,13 +23,14 @@ class RNNEncoder(EncoderBase):
     """
 
     def __init__(self, rnn_type, bidirectional, num_layers,
-                 hidden_size, dropout=0.0, embeddings=None):
+                 hidden_size, single_enc_double_dec_layers, dropout=0.0, embeddings=None):
         super(RNNEncoder, self).__init__()
         assert embeddings is not None
 
         num_directions = 2 if bidirectional else 1
-        assert hidden_size % num_directions == 0
-        hidden_size = hidden_size // num_directions
+        if single_enc_double_dec_layers == False:
+            assert hidden_size % num_directions == 0
+            hidden_size = hidden_size // num_directions
         self.embeddings = embeddings
 
         self.rnn, self.no_pack_padded_seq = \
@@ -51,6 +52,7 @@ class RNNEncoder(EncoderBase):
             opt.enc_layers,
             opt.enc_rnn_size,
             opt.dropout,
+            opt.single_enc_double_dec_layers,
             embeddings)
 
     def forward(self, src, lengths=None):
