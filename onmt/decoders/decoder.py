@@ -138,8 +138,9 @@ class RNNDecoderBase(DecoderBase):
 
         # Init the input feed.
         batch_size = self.state["hidden"][0].size(1)
-        print(self.state["hidden"][0].size())
+        print(self.state["hidden"][0].size(1))
         h_size = (batch_size, self.hidden_size)
+        print(h_size)
         self.state["input_feed"] = \
             self.state["hidden"][0].data.new(*h_size).zero_().unsqueeze(0)
 
