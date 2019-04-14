@@ -16,6 +16,9 @@ class NMTModel(nn.Module):
         super(NMTModel, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
+        self.dimCorrection=None
+        if not encoder.enc_reshape:
+            self.dimCorrection=nn.Linear(encoder.rnn_size*2,encoder.rnn_size)
 
     def forward(self, src, tgt, lengths, bptt=False):
         """Forward propagate a `src` and `tgt` pair for training.
@@ -40,8 +43,11 @@ class NMTModel(nn.Module):
         tgt = tgt[:-1]  # exclude last target from inputs
 
         enc_state, memory_bank, lengths = self.encoder(src, lengths)
+        if not encoder.enc_reshape:
+            memory_bank=self.dimCorrection(memory_bank)
         if bptt is False:
             self.decoder.init_state(src, memory_bank, enc_state,self.encoder.enc_reshape)
+        
         dec_out, attns = self.decoder(tgt, memory_bank,
                                       memory_lengths=lengths)
         return dec_out, attns
