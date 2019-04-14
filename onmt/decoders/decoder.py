@@ -125,6 +125,7 @@ class RNNDecoderBase(DecoderBase):
         def _fix_enc_hidden(hidden):
             # The encoder hidden is  (layers*directions) x batch x dim.
             # We need to convert it to layers x batch x (directions*dim).
+            print(enc_reshape)
             if self.bidirectional_encoder and enc_reshape:
                 hidden = torch.cat([hidden[0:hidden.size(0):2],
                                     hidden[1:hidden.size(0):2]], 2)
@@ -250,6 +251,8 @@ class InputFeedRNNDecoder(RNNDecoderBase):
         for emb_t in emb.split(1):
             decoder_input = torch.cat([emb_t.squeeze(0), input_feed], 1)
             rnn_output, dec_state = self.rnn(decoder_input, dec_state)
+            print(memory_bank.transpose(0, 1).size())
+            print(rnn_output.size())
             if self.attentional:
                 decoder_output, p_attn = self.attn(
                     rnn_output,
