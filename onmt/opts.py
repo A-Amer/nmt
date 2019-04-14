@@ -58,6 +58,7 @@ def model_opts(parser):
 
     # Encoder-Decoder Options
     group = parser.add_argument_group('Model- Encoder-Decoder')
+    group.add('--single_enc_double_dec_layers', '-single_enc_double_dec_layers', action='store_false')
     group.add('--model_type', '-model_type', default='text',
               choices=['text'],
               help="Type of source model to use. Allows "
