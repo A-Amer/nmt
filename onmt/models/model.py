@@ -43,7 +43,7 @@ class NMTModel(nn.Module):
         tgt = tgt[:-1]  # exclude last target from inputs
 
         enc_state, memory_bank, lengths = self.encoder(src, lengths)
-        if not encoder.enc_reshape:
+        if not self.encoder.enc_reshape:
             memory_bank=self.dimCorrection(memory_bank)
         if bptt is False:
             self.decoder.init_state(src, memory_bank, enc_state,self.encoder.enc_reshape)
