@@ -120,12 +120,12 @@ class RNNDecoderBase(DecoderBase):
             opt.dropout,
             embeddings)
 
-    def init_state(self, src, memory_bank, encoder_final):
+    def init_state(self, src, memory_bank, encoder_final,enc_reshape):
         """Initialize decoder state with last state of the encoder."""
         def _fix_enc_hidden(hidden):
             # The encoder hidden is  (layers*directions) x batch x dim.
             # We need to convert it to layers x batch x (directions*dim).
-            if self.bidirectional_encoder:
+            if self.bidirectional_encoder and enc_reshape:
                 hidden = torch.cat([hidden[0:hidden.size(0):2],
                                     hidden[1:hidden.size(0):2]], 2)
             return hidden
