@@ -31,6 +31,7 @@ class RNNEncoder(EncoderBase):
         if single_enc_double_dec_layers == False:
             assert hidden_size % num_directions == 0
             hidden_size = hidden_size // num_directions
+        self.enc_reshape = single_enc_double_dec_layers
         self.embeddings = embeddings
 
         self.rnn, self.no_pack_padded_seq = \
