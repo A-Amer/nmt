@@ -33,7 +33,7 @@ class RNNEncoder(EncoderBase):
             hidden_size = hidden_size // num_directions
         self.enc_reshape = not single_enc_double_dec_layers
         self.embeddings = embeddings
-
+        self.hidden_size=hidden_size
         self.rnn, self.no_pack_padded_seq = \
             rnn_factory(rnn_type,
                         input_size=embeddings.embedding_size,
