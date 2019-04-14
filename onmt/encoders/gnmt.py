@@ -75,12 +75,8 @@ class GoogleEncoder(EncoderBase):
         if lengths is not None and not self.no_pack_padded_seq:
             memory_bank = unpack(memory_bank)[0]
             
-        if lengths is not None and not self.no_pack_padded_seq:
-            # Lengths data is wrapped inside a Tensor.
-            memory_bank = pack(memory_bank, lengths_list)
             
-        memory_bank, encoder_final = self.birnn(memory_bank)
-        if lengths is not None and not self.no_pack_padded_seq:
-            memory_bank = unpack(memory_bank)[0]
+        memory_bank, encoder_final = self.rnn(memory_bank)
+
         return encoder_final, memory_bank, lengths
     
