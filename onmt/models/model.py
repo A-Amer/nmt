@@ -18,7 +18,7 @@ class NMTModel(nn.Module):
         self.decoder = decoder
         self.dimCorrection=None
         if not encoder.enc_reshape:
-            self.dimCorrection=nn.Linear(encoder.rnn_size*2,encoder.rnn_size)
+            self.dimCorrection=nn.Linear(encoder.hidden_size*2,encoder.hidden_size)
 
     def forward(self, src, tgt, lengths, bptt=False):
         """Forward propagate a `src` and `tgt` pair for training.
