@@ -642,4 +642,4 @@ def build_dataset_iter(corpus_type, fields, opt, is_train=True):
         device,
         is_train,
         repeat=True,
-        num_batches_multiple=max(opt.accum_count) * opt.world_size)
+        num_batches_multiple=max(opt.accum_count))
