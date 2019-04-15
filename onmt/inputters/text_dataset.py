@@ -44,7 +44,7 @@ def text_sort_key(ex):
 
 # mix this with partial
 def _feature_tokenize(
-        string, layer=0, tok_delim=None, feat_delim=None):
+        string, layer=0, tok_delim=None, feat_delim=None, truncate=None):
     """Split apart word features (like POS/NER tags) from the tokens.
 
     Args:
@@ -54,14 +54,16 @@ def _feature_tokenize(
         layer (int): Which feature to extract. (Not used if there are no
             features, indicated by ``feat_delim is None``). In the
             example above, layer 2 is ``'' PLANET``.
-
+        truncate (int or NoneType): Restrict sequences to this length of
+            tokens.
 
     Returns:
         List[str] of tokens.
     """
 
     tokens = string.split(tok_delim)
-
+    if truncate is not None:
+        tokens = tokens[:truncate]
     if feat_delim is not None:
         tokens = [t.split(feat_delim)[layer] for t in tokens]
     return tokens
@@ -159,7 +161,7 @@ def text_fields(**kwargs):
         pad (str, optional): Defaults to ``"<blank>"``.
         bos (str or NoneType, optional): Defaults to ``"<s>"``.
         eos (str or NoneType, optional): Defaults to ``"</s>"``.
-
+        truncate (bool or NoneType, optional): Defaults to ``None``.
 
     Returns:
         TextMultiField
@@ -171,6 +173,7 @@ def text_fields(**kwargs):
     pad = kwargs.get("pad", "<blank>")
     bos = kwargs.get("bos", "<s>")
     eos = kwargs.get("eos", "</s>")
+    truncate = kwargs.get("truncate", None)
     fields_ = []
     feat_delim = u"￨" if n_feats > 0 else None
     for i in range(n_feats + 1):
@@ -178,6 +181,7 @@ def text_fields(**kwargs):
         tokenize = partial(
             _feature_tokenize,
             layer=i,
+            truncate=truncate,
             feat_delim=feat_delim)
         use_len = i == 0 and include_lengths
         feat = Field(

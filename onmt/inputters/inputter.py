@@ -13,7 +13,14 @@ from torchtext.data import Field
 from torchtext.vocab import Vocab
 
 from onmt.inputters.text_dataset import text_fields, TextMultiField
+from onmt.inputters.image_dataset import image_fields
+from onmt.inputters.audio_dataset import audio_fields
 from onmt.utils.logging import logger
+# backwards compatibility
+from onmt.inputters.text_dataset import _feature_tokenize  # noqa: F401
+from onmt.inputters.image_dataset import (  # noqa: F401
+    batch_img as make_img)
+
 import gc
 
 
@@ -55,11 +62,14 @@ def get_fields(
     n_tgt_feats,
     pad='<blank>',
     bos='<s>',
-    eos='</s>'
+    eos='</s>',
+    dynamic_dict=False,
+    src_truncate=None,
+    tgt_truncate=None
 ):
     """
     Args:
-        src_data_type: type of the source input. Options are [text].
+        src_data_type: type of the source input. Options are [text|img|audio].
         n_src_feats (int): the number of source features (not counting tokens)
             to create a :class:`torchtext.data.Field` for. (If
             ``src_data_type=="text"``, these fields are stored together
@@ -70,45 +80,68 @@ def get_fields(
             for tgt.
         eos (str): Special end of sequence symbol. Only relevant
             for tgt.
-
+        dynamic_dict (bool): Whether or not to include source map and
+            alignment fields.
+        src_truncate: Cut off src sequences beyond this (passed to
+            ``src_data_type``'s data reader - see there for more details).
+        tgt_truncate: Cut off tgt sequences beyond this (passed to
+            :class:`TextDataReader` - see there for more details).
 
     Returns:
         A dict mapping names to fields. These names need to match
         the dataset example attributes.
     """
 
-    assert src_data_type in ['text'], \
+    assert src_data_type in ['text', 'img', 'audio'], \
         "Data type not implemented"
+    assert not dynamic_dict or src_data_type == 'text', \
+        'it is not possible to use dynamic_dict with non-text input'
     fields = {}
 
-    fields_getters = {"text": text_fields}
+    fields_getters = {"text": text_fields,
+                      "img": image_fields,
+                      "audio": audio_fields}
 
     src_field_kwargs = {"n_feats": n_src_feats,
                         "include_lengths": True,
                         "pad": pad, "bos": None, "eos": None,
+                        "truncate": src_truncate,
                         "base_name": "src"}
     fields["src"] = fields_getters[src_data_type](**src_field_kwargs)
 
     tgt_field_kwargs = {"n_feats": n_tgt_feats,
                         "include_lengths": False,
                         "pad": pad, "bos": bos, "eos": eos,
+                        "truncate": tgt_truncate,
                         "base_name": "tgt"}
     fields["tgt"] = fields_getters["text"](**tgt_field_kwargs)
 
     indices = Field(use_vocab=False, dtype=torch.long, sequential=False)
     fields["indices"] = indices
 
+    if dynamic_dict:
+        src_map = Field(
+            use_vocab=False, dtype=torch.float,
+            postprocessing=make_src, sequential=False)
+        fields["src_map"] = src_map
+
+        align = Field(
+            use_vocab=False, dtype=torch.long,
+            postprocessing=make_tgt, sequential=False)
+        fields["alignment"] = align
+
     return fields
 
 
-def load_old_vocab(vocab, data_type="text"):
+def load_old_vocab(vocab, data_type="text", dynamic_dict=False):
     """Update a legacy vocab/field format.
 
     Args:
         vocab: a list of (field name, torchtext.vocab.Vocab) pairs. This is the
             format formerly saved in *.vocab.pt files. Or, text data
             not using a :class:`TextMultiField`.
-        data_type (str): text
+        data_type (str): text, img, or audio
+        dynamic_dict (bool): Used for copy attention.
 
     Returns:
         a dictionary whose keys are the field names and whose values Fields.
@@ -121,7 +154,8 @@ def load_old_vocab(vocab, data_type="text"):
         n_src_features = sum('src_feat_' in k for k in vocab)
         n_tgt_features = sum('tgt_feat_' in k for k in vocab)
         fields = get_fields(
-            data_type, n_src_features, n_tgt_features)
+            data_type, n_src_features, n_tgt_features,
+            dynamic_dict=dynamic_dict)
         for n, f in fields.items():
             try:
                 f_iter = iter(f)
@@ -367,23 +401,23 @@ def build_vocab(train_dataset_files, fields, data_type, share_vocab,
         counters,
         build_fv_args,
         size_multiple=vocab_size_multiple if not share_vocab else 1)
-
-    src_multifield = fields["src"]
-    _build_fv_from_multifield(
-        src_multifield,
-        counters,
-        build_fv_args,
-        size_multiple=vocab_size_multiple if not share_vocab else 1)
-    if share_vocab:
-        # `tgt_vocab_size` is ignored when sharing vocabularies
-        logger.info(" * merging src and tgt vocab...")
-        src_field = src_multifield.base_field
-        tgt_field = tgt_multifield.base_field
-        _merge_field_vocabs(
-            src_field, tgt_field, vocab_size=src_vocab_size,
-            min_freq=src_words_min_frequency,
-            vocab_size_multiple=vocab_size_multiple)
-        logger.info(" * merged vocab size: %d." % len(src_field.vocab))
+    if data_type == 'text':
+        src_multifield = fields["src"]
+        _build_fv_from_multifield(
+            src_multifield,
+            counters,
+            build_fv_args,
+            size_multiple=vocab_size_multiple if not share_vocab else 1)
+        if share_vocab:
+            # `tgt_vocab_size` is ignored when sharing vocabularies
+            logger.info(" * merging src and tgt vocab...")
+            src_field = src_multifield.base_field
+            tgt_field = tgt_multifield.base_field
+            _merge_field_vocabs(
+                src_field, tgt_field, vocab_size=src_vocab_size,
+                min_freq=src_words_min_frequency,
+                vocab_size_multiple=vocab_size_multiple)
+            logger.info(" * merged vocab size: %d." % len(src_field.vocab))
     return fields  # is the return necessary?
 
 
@@ -508,7 +542,7 @@ class DatasetLazyIter(object):
     """
 
     def __init__(self, dataset_paths, fields, batch_size, batch_size_fn,
-                 batch_size_multiple, device, is_train,shuffle=True, repeat=True,
+                 batch_size_multiple, device, is_train, repeat=True,
                  num_batches_multiple=1):
         self._paths = dataset_paths
         self.fields = fields
@@ -534,7 +568,7 @@ class DatasetLazyIter(object):
             train=self.is_train,
             sort=False,
             sort_within_batch=True,
-            repeat=False,shuffle=None
+            repeat=False
         )
         for batch in cur_iter:
             yield batch
@@ -558,6 +592,8 @@ class DatasetLazyIter(object):
            num_batches % self.num_batches_multiple != 0:
             # When the dataset is not repeated, we might need to ensure that
             # the number of returned batches is the multiple of a given value.
+            # This is important for multi GPU training to ensure that all
+            # workers have the same number of batches to process.
             for path in paths:
                 for batch in self._iter_dataset(path):
                     yield batch
@@ -601,7 +637,7 @@ def build_dataset_iter(corpus_type, fields, opt, is_train=True):
     batch_fn = max_tok_len if is_train and opt.batch_type == "tokens" else None
     batch_size_multiple = 8 if opt.model_dtype == "fp16" else 1
 
-    device = "cuda" if opt.gpu>-1 else "cpu"
+    device = "cuda" if opt.gpu_ranks else "cpu"
 
     return DatasetLazyIter(
         dataset_paths,
@@ -611,5 +647,5 @@ def build_dataset_iter(corpus_type, fields, opt, is_train=True):
         batch_size_multiple,
         device,
         is_train,
-        repeat=True,
-        num_batches_multiple=max(opt.accum_count),shuffle=opt.shuffle)
+        repeat=not opt.single_pass,
+        num_batches_multiple=max(opt.accum_count) * opt.world_size)
