@@ -281,7 +281,7 @@ class Translator(object):
             gs = self._score_target(
                 batch, memory_bank, src_lengths, src_vocabs,
                 batch.src_map if use_src_map else None)
-            self.model.decoder.init_state(src, memory_bank, enc_states)
+            self.model.decoder.init_state(src, memory_bank, enc_states,self.model.encoder.enc_reshape)
         else:
             gs = [0] * batch_size
         return gs
@@ -453,7 +453,7 @@ class Translator(object):
 
         # Encoder forward.
         src, enc_states, memory_bank, src_lengths = self._run_encoder(batch)
-        self.model.decoder.init_state(src, memory_bank, enc_states)
+        self.model.decoder.init_state(src, memory_bank, enc_states,self.model.encoder.enc_reshape)
 
         use_src_map = self.copy_attn
 
@@ -638,7 +638,7 @@ class Translator(object):
 
         # (1) Run the encoder on the src.
         src, enc_states, memory_bank, src_lengths = self._run_encoder(batch)
-        self.model.decoder.init_state(src, memory_bank, enc_states)
+        self.model.decoder.init_state(src, memory_bank, enc_states,self.model.encoder.enc_reshape)
 
         results = {
             "predictions": None,
@@ -750,7 +750,7 @@ class Translator(object):
 
         # (1) Run the encoder on the src.
         src, enc_states, memory_bank, src_lengths = self._run_encoder(batch)
-        self.model.decoder.init_state(src, memory_bank, enc_states)
+        self.model.decoder.init_state(src, memory_bank, enc_states,self.model.encoder.enc_reshape)
 
         results = {
             "predictions": [],
