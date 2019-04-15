@@ -262,7 +262,7 @@ class Translator(object):
             report_bleu=opt.report_bleu,
             report_rouge=opt.report_rouge,
             report_time=opt.report_time,
-            copy_attn=model_opt.copy_attn,
+            copy_attn=False,
             global_scorer=global_scorer,
             out_file=out_file,
             report_score=report_score,
