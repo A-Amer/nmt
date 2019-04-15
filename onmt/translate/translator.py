@@ -12,7 +12,6 @@ import torch
 import onmt.model_builder
 import onmt.translate.beam
 import onmt.inputters as inputters
-import onmt.decoders.ensemble
 from onmt.translate.beam_search import BeamSearch
 from onmt.translate.random_sampling import RandomSampling
 from onmt.utils.misc import tile, set_random_seed
@@ -23,8 +22,7 @@ def build_translator(opt, report_score=True, logger=None, out_file=None):
     if out_file is None:
         out_file = codecs.open(opt.output, 'w+', 'utf-8')
 
-    load_test_model = onmt.decoders.ensemble.load_test_model \
-        if len(opt.models) > 1 else onmt.model_builder.load_test_model
+    load_test_model =  onmt.model_builder.load_test_model
     fields, model, model_opt = load_test_model(opt)
 
     scorer = onmt.translate.GNMTGlobalScorer.from_opt(opt)
