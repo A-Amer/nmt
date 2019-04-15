@@ -91,7 +91,7 @@ class ResidualEncoder(EncoderBase):
             lengths_list = lengths.view(-1).tolist()
             packed_emb = pack(emb, lengths_list)
 
-        memory_bank, _ = self.layers[0](packed_emb)
+        memory_bank, encoder_final = self.layers[0](packed_emb)
 
         if lengths is not None and not self.no_pack_padded_seq:
             memory_bank = unpack(memory_bank)[0]
@@ -104,9 +104,10 @@ class ResidualEncoder(EncoderBase):
         for i in range(bottom_layers,self.num_layers):
             residual = memory_bank
             memory_bank = self.dropout(memory_bank)
-            memory_bank, encoder_final = self.layers[i](memory_bank)
+            memory_bank, enc_final = self.layers[i](memory_bank)
+            encoder_final[0]  = torch.cat((encoder_final[0] , enc_final[0]), 0)
+            encoder_final[1]  = torch.cat((encoder_final[1] , enc_final[1]), 0)
             memory_bank = memory_bank+ residual
         print(encoder_final[0].size())
-        print(memory_bank.size())
 
         return encoder_final, memory_bank, lengths
