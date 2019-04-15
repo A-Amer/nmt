@@ -35,6 +35,8 @@ class PenaltyBuilder(object):
     def _coverage_penalty(self, cov_pen):
         if cov_pen == "wu":
             return self.coverage_wu
+        elif cov_pen == "summary":
+            return self.coverage_summary
         elif self._pen_is_none(cov_pen):
             return self.coverage_none
         else:
@@ -67,6 +69,12 @@ class PenaltyBuilder(object):
         """
 
         penalty = -torch.min(cov, cov.clone().fill_(1.0)).log().sum(-1)
+        return beta * penalty
+
+    def coverage_summary(self, cov, beta=0.):
+        """Our summary penalty."""
+        penalty = torch.max(cov, cov.clone().fill_(1.0)).sum(-1)
+        penalty -= cov.size(-1)
         return beta * penalty
 
     def coverage_none(self, cov, beta=0.):
