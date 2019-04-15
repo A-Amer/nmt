@@ -106,7 +106,7 @@ class ResidualEncoder(EncoderBase):
             memory_bank = self.dropout(memory_bank)
             memory_bank, encoder_final = self.layers[i](memory_bank)
             memory_bank = memory_bank+ residual
-        print(encoder_final.size())
+        print(encoder_final[0].size())
         print(memory_bank.size())
 
         return encoder_final, memory_bank, lengths
