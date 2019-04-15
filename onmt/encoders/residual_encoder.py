@@ -105,8 +105,9 @@ class ResidualEncoder(EncoderBase):
             residual = memory_bank
             memory_bank = self.dropout(memory_bank)
             memory_bank, enc_final = self.layers[i](memory_bank)
-            encoder_final[0]  = torch.cat((encoder_final[0] , enc_final[0]), 0)
-            encoder_final[1]  = torch.cat((encoder_final[1] , enc_final[1]), 0)
+            encoder_final0  = torch.cat((encoder_final[0] , enc_final[0]), 0)
+            encoder_final1  = torch.cat((encoder_final[1] , enc_final[1]), 0)
+            encoder_final=(encoder_final0,encoder_final1)
             memory_bank = memory_bank+ residual
         print(encoder_final[0].size())
 
