@@ -29,6 +29,7 @@ class ResidualEncoder(EncoderBase):
         self.embeddings = embeddings
         self.gnmt=gnmt
         self.num_layers=num_layers
+        self.enc_reshape=False
         self.layers=nn.ModuleList()
         self.dropout=nn.Dropout(dropout)
         bottom_layers=1
