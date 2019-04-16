@@ -8,7 +8,15 @@ import torch.nn as nn
 
 import onmt
 
-
+def _build_target_tokens(self, src, vocab, pred,eos_token):
+        vocab = tgt_field.vocab
+        tokens = []
+        for tok in pred:
+            tokens.append(vocab.itos[tok])
+            if tokens[-1] == eos_token:
+                tokens = tokens[:-1]
+                break
+        return tokens[:-1]
 def build_loss_compute(model, tgt_field, opt, train=True):
     """
     Returns a LossCompute subclass which wraps around an nn.Module subclass
@@ -25,7 +33,7 @@ def build_loss_compute(model, tgt_field, opt, train=True):
        criterion = nn.NLLLoss(ignore_index=padding_idx, reduction='sum')
         
     loss_gen = model.generator
-    compute = NMTLossCompute(criterion, loss_gen)
+    compute = NMTLossCompute(criterion, loss_gen,vocab=tgt_field.vocab,eos_token=tgt_field.eos_token)
     compute.to(device)
 
     return compute
@@ -114,9 +122,6 @@ class LossComputeBase(nn.Module):
             loss, stats = self._compute_loss(batch, **shard_state)
             return loss / float(normalization), stats
         batch_stats = onmt.utils.Statistics()
-        if valid:
-          predFile=open("pred.txt",'w+', 'utf-8')
-          predFile.close()
         for shard in shards(shard_state, shard_size):
             loss, stats = self._compute_loss(batch, **shard,valid=valid)
             loss.div(float(normalization)).backward()
@@ -134,13 +139,11 @@ class LossComputeBase(nn.Module):
             :obj:`onmt.utils.Statistics` : statistics for this batch.
         """
         pred = scores.max(1)[1]
+        print(pred.size())
         non_padding = target.ne(self.padding_idx)
         num_correct = pred.eq(target).masked_select(non_padding).sum().item()
         num_non_padding = non_padding.sum().item()
-        if valid:
-          predFile=open("pred.txt",'a')
-          predFile.write()
-          predFile.close()
+
         return onmt.utils.Statistics(loss.item(), num_non_padding, num_correct)
 
     def _bottle(self, _v):
@@ -155,8 +158,10 @@ class NMTLossCompute(LossComputeBase):
     Standard NMT Loss Computation.
     """
 
-    def __init__(self, criterion, generator, normalization="sents"):
+    def __init__(self, criterion, generator,vocab=None,eos_token=2, normalization="sents"):
         super(NMTLossCompute, self).__init__(criterion, generator)
+        self.tgt_vocab=vocab
+        self.eos_token=eos_token
 
     def _make_shard_state(self, batch, output, range_, attns=None):
         return {
