@@ -38,7 +38,12 @@ def build_trainer(opt, device_id, model, fields, optim, model_saver=None):
     train_loss = onmt.utils.loss.build_loss_compute(model, tgt_field, opt)
     valid_loss = onmt.utils.loss.build_loss_compute(
         model, tgt_field, opt, train=False)
-
+    with open(opt.valid_dest) as f:
+        with open("ref.txt", "w") as f1:
+            for line in f:
+                f1.write(line) 
+            f1.close()
+            f.close()
     shard_size = opt.max_generator_batches if opt.model_dtype == 'fp32' else 0
     norm_method = opt.normalization
     accum_count = opt.accum_count
@@ -250,17 +255,12 @@ class Trainer(object):
 
         with torch.no_grad():
             stats = onmt.utils.Statistics
-            with open("ref.txt","w") as f:
-                f.close()
+            
 
             for batch in valid_iter:
                 src, src_lengths = batch.src if isinstance(batch.src, tuple) \
                                    else (batch.src, None)
                 tgt = batch.tgt
-                with open("ref.txt","a") as f:
-                      f.write(tgt)
-                      f.close()
-
                 # F-prop through the model.
                 outputs, attns = valid_model(src, tgt, src_lengths)
 
