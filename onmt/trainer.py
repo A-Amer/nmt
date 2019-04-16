@@ -254,13 +254,13 @@ class Trainer(object):
         valid_model.eval()
 
         with torch.no_grad():
-            stats = onmt.utils.Statistics
-            
+            stats = onmt.utils.Statistics()
 
             for batch in valid_iter:
                 src, src_lengths = batch.src if isinstance(batch.src, tuple) \
                                    else (batch.src, None)
                 tgt = batch.tgt
+
                 # F-prop through the model.
                 outputs, attns = valid_model(src, tgt, src_lengths)
 
@@ -269,11 +269,11 @@ class Trainer(object):
 
                 # Update statistics.
                 stats.update(batch_stats)
+        
+        valid_model.train()
         var = "ref.txt  < pred.txt"
         pipe = subprocess.Popen(["perl", "./tools/multi-bleu.perl", var], stdout=sys.stdout)
         pipe.communicate()
-        valid_model.train()
-
         return stats
 
     def _gradient_accumulation(self, true_batches, normalization, total_stats,
