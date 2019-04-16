@@ -17,8 +17,13 @@ def build_loss_compute(model, tgt_field, opt, train=True):
     device = torch.device("cuda" if onmt.utils.misc.use_gpu(opt) else "cpu")
 
     padding_idx = tgt_field.vocab.stoi[tgt_field.pad_token]
-    criterion = nn.NLLLoss(ignore_index=padding_idx, reduction='sum')
-
+    if opt.label_smoothing > 0 and train:
+        criterion = LabelSmoothingLoss(
+            opt.label_smoothing, len(tgt_field.vocab), ignore_index=padding_idx
+        )
+    else:
+       criterion = nn.NLLLoss(ignore_index=padding_idx, reduction='sum')
+        
     loss_gen = model.generator
     compute = NMTLossCompute(criterion, loss_gen)
     compute.to(device)
@@ -86,7 +91,7 @@ class LossComputeBase(nn.Module):
                  output,
                  attns,
                  normalization=1.0,
-                 shard_size=0):
+                 shard_size=0, valid=False):
         """Compute the forward loss, possibly in shards in which case this
         method also runs the backward pass and returns ``None`` as the loss
         value.
@@ -109,13 +114,16 @@ class LossComputeBase(nn.Module):
             loss, stats = self._compute_loss(batch, **shard_state)
             return loss / float(normalization), stats
         batch_stats = onmt.utils.Statistics()
+        if valid:
+          predFile=open("pred.txt",'w+', 'utf-8')
+          predFile.close()
         for shard in shards(shard_state, shard_size):
-            loss, stats = self._compute_loss(batch, **shard)
+            loss, stats = self._compute_loss(batch, **shard,valid=valid)
             loss.div(float(normalization)).backward()
             batch_stats.update(stats)
         return None, batch_stats
 
-    def _stats(self, loss, scores, target):
+    def _stats(self, loss, scores, target, valid=False):
         """
         Args:
             loss (:obj:`FloatTensor`): the loss computed by the loss criterion.
@@ -129,6 +137,10 @@ class LossComputeBase(nn.Module):
         non_padding = target.ne(self.padding_idx)
         num_correct = pred.eq(target).masked_select(non_padding).sum().item()
         num_non_padding = non_padding.sum().item()
+        if valid:
+          predFile=open("pred.txt",'a')
+          predFile.write()
+          predFile.close()
         return onmt.utils.Statistics(loss.item(), num_non_padding, num_correct)
 
     def _bottle(self, _v):
@@ -152,14 +164,14 @@ class NMTLossCompute(LossComputeBase):
             "target": batch.tgt[range_[0] + 1: range_[1], :, 0],
         }
 
-    def _compute_loss(self, batch, output, target):
+    def _compute_loss(self, batch, output, target, valid=False):
         bottled_output = self._bottle(output)
 
         scores = self.generator(bottled_output)
         gtruth = target.view(-1)
 
         loss = self.criterion(scores, gtruth)
-        stats = self._stats(loss.clone(), scores, gtruth)
+        stats = self._stats(loss.clone(), scores, gtruth,valid=valid)
 
         return loss, stats
 
