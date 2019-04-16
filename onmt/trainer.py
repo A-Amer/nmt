@@ -248,22 +248,27 @@ class Trainer(object):
         valid_model.eval()
 
         with torch.no_grad():
-            stats = onmt.utils.Statistics()
+            stats = onmt.utils.Statistics
+            with open("ref.txt","w") as f:
+                f.close()
 
             for batch in valid_iter:
                 src, src_lengths = batch.src if isinstance(batch.src, tuple) \
                                    else (batch.src, None)
                 tgt = batch.tgt
+                with open("ref.txt","a") as f:
+                      f.write(tgt)
+                      f.close()
 
                 # F-prop through the model.
                 outputs, attns = valid_model(src, tgt, src_lengths)
 
                 # Compute loss.
-                _, batch_stats = self.valid_loss(batch, outputs, attns)
+                _, batch_stats = self.valid_loss(batch, outputs, attns,valid=True)
 
                 # Update statistics.
                 stats.update(batch_stats)
-
+        !perl nmt/tools/multi-bleu.perl   ref.txt  < pred.txt
         valid_model.train()
 
         return stats
