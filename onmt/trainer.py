@@ -13,7 +13,8 @@ from copy import deepcopy
 import itertools
 import torch
 import traceback
-
+import subprocess
+import sys
 import onmt.utils
 from onmt.utils.logging import logger
 
@@ -268,7 +269,9 @@ class Trainer(object):
 
                 # Update statistics.
                 stats.update(batch_stats)
-        !perl nmt/tools/multi-bleu.perl   ref.txt  < pred.txt
+        var = "ref.txt  < pred.txt"
+        pipe = subprocess.Popen(["perl", "./tools/multi-bleu.perl", var], stdout=sys.stdout)
+        pipe.communicate()
         valid_model.train()
 
         return stats
