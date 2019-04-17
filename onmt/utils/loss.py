@@ -139,11 +139,14 @@ class LossComputeBase(nn.Module):
             :obj:`onmt.utils.Statistics` : statistics for this batch.
         """
         pred = scores.max(1)[1]
-        if valid:
-          print(pred.size())
+        
         non_padding = target.ne(self.padding_idx)
         num_correct = pred.eq(target).masked_select(non_padding).sum().item()
         num_non_padding = non_padding.sum().item()
+        if valid:
+          print(scores.max(1).size())
+          print(pred.size())
+          print(non_padding.size())
 
         return onmt.utils.Statistics(loss.item(), num_non_padding, num_correct)
 
