@@ -170,7 +170,13 @@ class NMTLossCompute(LossComputeBase):
     def _compute_loss(self, batch, output, target, valid=False):
         bottled_output = self._bottle(output)
         if valid:
-          print(output.size())
+          pred_file=open("pred.txt",'a')
+          for i in range(output.size()[1]):
+            scores = self.generator(output[:,i,:])
+            pred = scores.max(1)[1]
+            out_tokens=_build_target_tokens(self.tgt_vocab, pred,self.eos_token)
+            sentence=' '.join(word for word in word_list)
+            pred_file.write(sentence+'\n')
         scores = self.generator(bottled_output)
         gtruth = target.view(-1)
 
