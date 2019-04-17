@@ -144,8 +144,7 @@ class LossComputeBase(nn.Module):
         num_correct = pred.eq(target).masked_select(non_padding).sum().item()
         num_non_padding = non_padding.sum().item()
         if valid:
-          print(scores.size())
-          print(pred.masked_select(non_padding).size())
+          #print(pred.masked_select(non_padding).size())
           #print(target.masked_select(non_padding).size())
 
         return onmt.utils.Statistics(loss.item(), num_non_padding, num_correct)
@@ -175,7 +174,8 @@ class NMTLossCompute(LossComputeBase):
 
     def _compute_loss(self, batch, output, target, valid=False):
         bottled_output = self._bottle(output)
-
+        if valid:
+          print(output.size())
         scores = self.generator(bottled_output)
         gtruth = target.view(-1)
 
