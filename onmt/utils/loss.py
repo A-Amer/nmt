@@ -177,6 +177,7 @@ class NMTLossCompute(LossComputeBase):
             out_tokens=_build_target_tokens(self.tgt_vocab, pred,self.eos_token)
             sentence=' '.join(word for word in word_list)
             pred_file.write(sentence+'\n')
+          pred_file.close()
         scores = self.generator(bottled_output)
         gtruth = target.view(-1)
 
