@@ -13,8 +13,7 @@ from copy import deepcopy
 import itertools
 import torch
 import traceback
-import subprocess
-import sys
+import os
 import onmt.utils
 from onmt.utils.logging import logger
 
