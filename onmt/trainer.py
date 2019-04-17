@@ -251,7 +251,8 @@ class Trainer(object):
 
         # Set model in validating mode.
         valid_model.eval()
-
+        pred_file=open("pred.txt", "w")
+        pred_file.close()
         with torch.no_grad():
             stats = onmt.utils.Statistics()
 
