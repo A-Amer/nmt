@@ -8,8 +8,7 @@ import torch.nn as nn
 
 import onmt
 
-def _build_target_tokens(self, src, vocab, pred,eos_token):
-        vocab = tgt_field.vocab
+def _build_target_tokens(vocab, pred,eos_token):
         tokens = []
         for tok in pred:
             tokens.append(vocab.itos[tok])
