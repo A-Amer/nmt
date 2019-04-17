@@ -271,9 +271,10 @@ class Trainer(object):
                 stats.update(batch_stats)
         
         valid_model.train()
-        var = "ref.txt  < pred.txt"
-        pipe = subprocess.Popen(["perl", "./tools/multi-bleu.perl", var], stdout=sys.stdout)
-        pipe.communicate()
+        os.system("perl ./tools/multi-bleu.perl ref.txt  < pred.txt")
+        #var = "ref.txt  < pred.txt"
+        #pipe = subprocess.Popen(["perl", "./tools/multi-bleu.perl", var], stdout=sys.stdout)
+        #pipe.communicate()
         return stats
 
     def _gradient_accumulation(self, true_batches, normalization, total_stats,
