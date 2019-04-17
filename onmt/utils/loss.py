@@ -144,7 +144,6 @@ class LossComputeBase(nn.Module):
         num_correct = pred.eq(target).masked_select(non_padding).sum().item()
         num_non_padding = non_padding.sum().item()
         if valid:
-          print(scores.max(1).size())
           print(pred.size())
           print(non_padding.size())
 
