@@ -143,10 +143,6 @@ class LossComputeBase(nn.Module):
         non_padding = target.ne(self.padding_idx)
         num_correct = pred.eq(target).masked_select(non_padding).sum().item()
         num_non_padding = non_padding.sum().item()
-        #if valid:
-          #print(pred.masked_select(non_padding).size())
-          #print(target.masked_select(non_padding).size())
-
         return onmt.utils.Statistics(loss.item(), num_non_padding, num_correct)
 
     def _bottle(self, _v):
