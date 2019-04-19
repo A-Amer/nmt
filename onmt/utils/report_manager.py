@@ -82,7 +82,7 @@ class ReportMgrBase(object):
         """ To be overridden """
         raise NotImplementedError()
 
-    def report_step(self, lr, step, train_stats=None, valid_stats=None):
+    def report_step(self, lr, step, train_stats=None, valid_stats=None,bleu=None):
         """
         Report stats of a step
 
@@ -92,7 +92,7 @@ class ReportMgrBase(object):
             lr(float): current learning rate
         """
         self._report_step(
-            lr, step, train_stats=train_stats, valid_stats=valid_stats)
+            lr, step, train_stats=train_stats, valid_stats=valid_stats,bleu=None)
 
     def _report_step(self, *args, **kwargs):
         raise NotImplementedError()
