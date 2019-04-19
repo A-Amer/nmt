@@ -250,6 +250,8 @@ def train_opts(parser):
                    '".valid.pt" file path from preprocess.py')
     group.add('--valid_dest', '-valid_dest', required=True,
               help='Path to validation destination')
+    group.add('--valid_src', '-valid_src', required=True,
+              help='Path to validation source')
     group.add('--save_model', '-save_model', default='model',
               help="Model filename (the model will be saved as "
                    "<save_model>_N.pt where N is the number "

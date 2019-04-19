@@ -2,11 +2,37 @@
 from __future__ import print_function
 import time
 from datetime import datetime
-
+import codecs
+from nltk import word_tokenize
+from nltk.translate.bleu_score import *
 import onmt
-
+from itertools import izip
+from statistics import mean
+from onmt.utils.sari import SARIsent
 from onmt.utils.logging import logger
 
+smooth = SmoothingFunction()
+
+def BLEU_file(refs,preds="pred.txt"):
+    files = [codecs.open(fis, "r", 'utf-8') for fis in [preds, refs]]
+    references = []
+    hypothese = []
+    for pred, ref in izip(*files):
+        references.append([word_tokenize(r) for r in ref.split('\n')])
+        hypothese.append(word_tokenize(pred))
+    for fis in files:
+        fis.close()
+    # Smoothing method 3: NIST geometric sequence smoothing
+    return corpus_bleu(references, hypothese, smoothing_function=smooth.method3)
+def SARI_file(source, refs,preds="pred.txt"):
+    files = [codecs.open(fis, "r", 'utf-8') for fis in [source, preds, refs]]
+    scores = []
+    for src, pred, ref in izip(*files):
+        references = [r for r in ref.split('\n')]
+        scores.append(SARIsent(src, pred, references))
+    for fis in files:
+        fis.close()
+    return mean(scores)
 
 def build_report_manager(opt):
     if opt.tensorboard:
@@ -22,7 +48,7 @@ def build_report_manager(opt):
         writer = None
 
     report_mgr = ReportMgr(opt.report_every, start_time=-1,
-                           tensorboard_writer=writer)
+                           tensorboard_writer=writer,source=opt.valid_src,dest=opt.valid_dest)
     return report_mgr
 
 
@@ -82,7 +108,7 @@ class ReportMgrBase(object):
         """ To be overridden """
         raise NotImplementedError()
 
-    def report_step(self, lr, step, train_stats=None, valid_stats=None,bleu=None):
+    def report_step(self, lr, step, train_stats=None, valid_stats=None):
         """
         Report stats of a step
 
@@ -92,14 +118,14 @@ class ReportMgrBase(object):
             lr(float): current learning rate
         """
         self._report_step(
-            lr, step, train_stats=train_stats, valid_stats=valid_stats,bleu=None)
+            lr, step, train_stats=train_stats, valid_stats=valid_stats)
 
     def _report_step(self, *args, **kwargs):
         raise NotImplementedError()
 
 
 class ReportMgr(ReportMgrBase):
-    def __init__(self, report_every, start_time=-1., tensorboard_writer=None):
+    def __init__(self, report_every, start_time=-1., tensorboard_writer=None,source=None,dest=None):
         """
         A report manager that writes statistics on standard output as well as
         (optionally) TensorBoard
@@ -111,6 +137,8 @@ class ReportMgr(ReportMgrBase):
         """
         super(ReportMgr, self).__init__(report_every, start_time)
         self.tensorboard_writer = tensorboard_writer
+        self.source=source
+        self.dest=dest
 
     def maybe_log_tensorboard(self, stats, prefix, learning_rate, step):
         if self.tensorboard_writer is not None:
@@ -134,7 +162,7 @@ class ReportMgr(ReportMgrBase):
 
         return report_stats
 
-    def _report_step(self, lr, step, train_stats=None, valid_stats=None,bleu=None):
+    def _report_step(self, lr, step, train_stats=None, valid_stats=None):
         """
         See base class method `ReportMgrBase.report_step`.
         """
@@ -150,8 +178,8 @@ class ReportMgr(ReportMgrBase):
         if valid_stats is not None:
             self.log('Validation perplexity: %g' % valid_stats.ppl())
             self.log('Validation accuracy: %g' % valid_stats.accuracy())
-            if bleu is not None:
-                self.log('Validation bleu: %g' % bleu)
+            self.log('Validation bleu: %g' % BLEU_file(self.dest))
+            self.log('Validation Sari: %g' % SARI_file(self.source,self.dest))
 
             self.maybe_log_tensorboard(valid_stats,
                                        "valid",

@@ -1,6 +1,4 @@
 """Define RNN-based encoders."""
-import torch.nn as nn
-import torch.nn.functional as F
 
 from torch.nn.utils.rnn import pack_padded_sequence as pack
 from torch.nn.utils.rnn import pad_packed_sequence as unpack

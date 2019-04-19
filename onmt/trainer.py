@@ -9,11 +9,8 @@
           users of this library) for the strategy things we do.
 """
 
-from copy import deepcopy
-import itertools
 import torch
 import traceback
-import os
 import onmt.utils
 from onmt.utils.logging import logger
 
@@ -37,12 +34,6 @@ def build_trainer(opt, device_id, model, fields, optim, model_saver=None):
     train_loss = onmt.utils.loss.build_loss_compute(model, tgt_field, opt)
     valid_loss = onmt.utils.loss.build_loss_compute(
         model, tgt_field, opt, train=False)
-    with open(opt.valid_dest) as f:
-        with open("ref.txt", "w") as f1:
-            for line in f:
-                f1.write(line) 
-            f1.close()
-            f.close()
     shard_size = opt.max_generator_batches if opt.model_dtype == 'fp32' else 0
     norm_method = opt.normalization
     accum_count = opt.accum_count
@@ -213,7 +204,7 @@ class Trainer(object):
                 if self.gpu_verbose_level > 0:
                     logger.info('GpuRank %d: validate step %d'
                                 % (self.gpu_rank, step))
-                valid_stats,bleu = self.validate( valid_iter)
+                valid_stats = self.validate( valid_iter)
                 if self.gpu_verbose_level > 0:
                     logger.info('GpuRank %d: gather valid stat \
                                 step %d' % (self.gpu_rank, step))
@@ -221,7 +212,7 @@ class Trainer(object):
                     logger.info('GpuRank %d: report stat step %d'
                                 % (self.gpu_rank, step))
                 self._report_step(self.optim.learning_rate(),
-                                  step, valid_stats=valid_stats,bleu=bleu)
+                                  step, valid_stats=valid_stats)
                 # Run patience mechanism
                 if self.earlystopper is not None:
                     self.earlystopper(valid_stats, step)
@@ -271,16 +262,8 @@ class Trainer(object):
                 stats.update(batch_stats)
         
         valid_model.train()
-        temp = "result.txt"
-        command = "perl nmt/tools/multi-bleu.perl ref.txt<pred.txt> " + temp
-        os.system(command)
-        with open(temp) as ft:
-            result = ft.read()
-        os.remove(temp)
-        #var = "ref.txt  < pred.txt"
-        #pipe = subprocess.Popen(["perl", "./tools/multi-bleu.perl", var], stdout=sys.stdout)
-        #pipe.communicate()
-        return stats,result
+
+        return stats
 
     def _gradient_accumulation(self, true_batches, normalization, total_stats,
                                report_stats):
@@ -362,7 +345,7 @@ class Trainer(object):
                 step, num_steps, learning_rate, report_stats)
 
     def _report_step(self, learning_rate, step, train_stats=None,
-                     valid_stats=None,bleu=None):
+                     valid_stats=None):
         """
         Simple function to report stats (if report_manager is set)
         see `onmt.utils.ReportManagerBase.report_step` for doc
@@ -370,4 +353,4 @@ class Trainer(object):
         if self.report_manager is not None:
             return self.report_manager.report_step(
                 learning_rate, step, train_stats=train_stats,
-                valid_stats=valid_stats,bleu=bleu)
+                valid_stats=valid_stats)

@@ -4,9 +4,10 @@ from onmt.utils.report_manager import ReportMgr, build_report_manager
 from onmt.utils.statistics import Statistics
 from onmt.utils.optimizers import Optimizer
 from onmt.utils.earlystopping import EarlyStopping, scorers_from_opts
+from onmt.utils.sari import SARIsent
 import onmt.utils.loss
 
 __all__ = ["split_corpus", "aeq", "use_gpu", "set_random_seed", "ReportMgr",
            "build_report_manager", "Statistics",
            "Optimizer",  "EarlyStopping",
-           "scorers_from_opts"]
+           "scorers_from_opts","SARIsent"]
