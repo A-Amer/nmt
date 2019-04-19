@@ -13,7 +13,7 @@ class ResidualEncoder(EncoderBase):
 
     Args:
        rnn_type (str):
-          style of recurrent unit to use, one of [RNN, LSTM, GRU, SRU]
+          style of recurrent unit to use, one of [RNN, LSTM, GRU]
        bidirectional (bool) : use a bidirectional RNN
        num_layers (int) : number of stacked layers
        hidden_size (int) : hidden size of each layer
@@ -112,6 +112,7 @@ class ResidualEncoder(EncoderBase):
             encoder_final0  = torch.cat((encoder_final[0] , enc_final[0]), 0)
             encoder_final1  = torch.cat((encoder_final[1] , enc_final[1]), 0)
             encoder_final=(encoder_final0,encoder_final1)
-            memory_bank = memory_bank+ residual
+            if self.num_layers>=4:
+                memory_bank = memory_bank+ residual
 
         return encoder_final, memory_bank, lengths
