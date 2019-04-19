@@ -14,19 +14,19 @@ smooth = SmoothingFunction()
 
 def BLEU_file(refs,preds="pred.txt"):
     files = [codecs.open(fis, "r", 'utf-8') for fis in [preds, refs]]
-    references = []
-    hypothese = []
+    scores = []
     for pred, ref in zip(*files):
         ref=ref.split('\n')
         pred=pred.split('\n')
-        for r in ref:
-            references.append([word_tokenize(r.replace('\n',''))])
-        for p in pred:
-            hypothese.append(word_tokenize(p.replace('\n','')))
+        
+        for i in range(len(pred)):
+            scores.append(sentence_bleu([word_tokenize(ref[i].replace('\n',''))],word_tokenize(pred[i].replace('\n','')),smoothing_function=smooth.method3))
+
     for fis in files:
         fis.close()
     # Smoothing method 3: NIST geometric sequence smoothing
-    return corpus_bleu(references, hypothese, smoothing_function=smooth.method3)
+    return mean(scores)
+
 def SARI_file(source, refs,preds="pred.txt"):
     files = [codecs.open(fis, "r", 'utf-8') for fis in [source, preds, refs]]
     scores = []
