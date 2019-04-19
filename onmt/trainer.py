@@ -213,7 +213,7 @@ class Trainer(object):
                 if self.gpu_verbose_level > 0:
                     logger.info('GpuRank %d: validate step %d'
                                 % (self.gpu_rank, step))
-                valid_stats = self.validate( valid_iter)
+                valid_stats,bleu = self.validate( valid_iter)
                 if self.gpu_verbose_level > 0:
                     logger.info('GpuRank %d: gather valid stat \
                                 step %d' % (self.gpu_rank, step))
@@ -221,7 +221,7 @@ class Trainer(object):
                     logger.info('GpuRank %d: report stat step %d'
                                 % (self.gpu_rank, step))
                 self._report_step(self.optim.learning_rate(),
-                                  step, valid_stats=valid_stats)
+                                  step, valid_stats=valid_stats,bleu=bleu)
                 # Run patience mechanism
                 if self.earlystopper is not None:
                     self.earlystopper(valid_stats, step)
@@ -271,11 +271,16 @@ class Trainer(object):
                 stats.update(batch_stats)
         
         valid_model.train()
-        os.system("perl ./tools/multi-bleu.perl ref.txt  < pred.txt")
+        temp = "result.txt"
+        command = "perl nmt/tools/multi-bleu.perl ref.txt<pred.txt> " + temp
+        os.system(command)
+        with open(temp) as ft:
+            result = ft.read()
+        os.remove(temp)
         #var = "ref.txt  < pred.txt"
         #pipe = subprocess.Popen(["perl", "./tools/multi-bleu.perl", var], stdout=sys.stdout)
         #pipe.communicate()
-        return stats
+        return stats,result
 
     def _gradient_accumulation(self, true_batches, normalization, total_stats,
                                report_stats):
@@ -357,7 +362,7 @@ class Trainer(object):
                 step, num_steps, learning_rate, report_stats)
 
     def _report_step(self, learning_rate, step, train_stats=None,
-                     valid_stats=None):
+                     valid_stats=None,bleu=None):
         """
         Simple function to report stats (if report_manager is set)
         see `onmt.utils.ReportManagerBase.report_step` for doc
@@ -365,4 +370,4 @@ class Trainer(object):
         if self.report_manager is not None:
             return self.report_manager.report_step(
                 learning_rate, step, train_stats=train_stats,
-                valid_stats=valid_stats)
+                valid_stats=valid_stats,bleu=bleu)
