@@ -17,8 +17,12 @@ def BLEU_file(refs,preds="pred.txt"):
     references = []
     hypothese = []
     for pred, ref in zip(*files):
-        references.append([word_tokenize(r) for r in ref.split('\n')])
-        hypothese.append(word_tokenize(pred))
+        ref=ref.split('\n')
+        pred=pred.split('\n')
+        for r in ref:
+            references.append([word_tokenize(r.replace('\n',''))])
+        for p in pred:
+            hypothese.append(word_tokenize(p.replace('\n','')))
     for fis in files:
         fis.close()
     # Smoothing method 3: NIST geometric sequence smoothing
@@ -27,8 +31,11 @@ def SARI_file(source, refs,preds="pred.txt"):
     files = [codecs.open(fis, "r", 'utf-8') for fis in [source, preds, refs]]
     scores = []
     for src, pred, ref in zip(*files):
-        references = [r for r in ref.split('\n')]
-        scores.append(SARIsent(src, pred, references))
+        ref = ref.split('\n')
+        pred = pred.split('\n')
+        src=src.split('\n')
+        for i in range(len(src)):
+            scores.append(SARIsent(src[i].replace('\n',''), pred[i].replace('\n',''), [ref[i].replace('\n','')]))
     for fis in files:
         fis.close()
     return mean(scores)
