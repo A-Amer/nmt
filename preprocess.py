@@ -17,17 +17,6 @@ import onmt.opts as opts
 from onmt.utils.parse import ArgumentParser
 
 
-def check_existing_pt_files(opt):
-    """ Check if there are existing .pt files to avoid overwriting them """
-    pattern = opt.save_data + '.{}*.pt'
-    for t in ['train', 'valid', 'vocab']:
-        path = pattern.format(t)
-        if glob.glob(path):
-            sys.stderr.write("Please backup existing pt files: %s, "
-                             "to avoid overwriting them!\n" % path)
-            sys.exit(1)
-
-
 def build_save_dataset(corpus_type, fields, src_reader, tgt_reader, opt):
     assert corpus_type in ['train', 'valid']
 
@@ -105,7 +94,6 @@ def count_features(path):
 def main(opt):
     ArgumentParser.validate_preprocess_args(opt)
     torch.manual_seed(opt.seed)
-    check_existing_pt_files(opt)
 
     init_logger(opt.log_file)
     logger.info("Extracting features...")
