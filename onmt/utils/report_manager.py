@@ -6,7 +6,6 @@ import codecs
 from nltk import word_tokenize
 from nltk.translate.bleu_score import *
 import onmt
-from itertools import izip
 from statistics import mean
 from onmt.utils.sari import SARIsent
 from onmt.utils.logging import logger
@@ -17,7 +16,7 @@ def BLEU_file(refs,preds="pred.txt"):
     files = [codecs.open(fis, "r", 'utf-8') for fis in [preds, refs]]
     references = []
     hypothese = []
-    for pred, ref in izip(*files):
+    for pred, ref in zip(*files):
         references.append([word_tokenize(r) for r in ref.split('\n')])
         hypothese.append(word_tokenize(pred))
     for fis in files:
@@ -27,7 +26,7 @@ def BLEU_file(refs,preds="pred.txt"):
 def SARI_file(source, refs,preds="pred.txt"):
     files = [codecs.open(fis, "r", 'utf-8') for fis in [source, preds, refs]]
     scores = []
-    for src, pred, ref in izip(*files):
+    for src, pred, ref in zip(*files):
         references = [r for r in ref.split('\n')]
         scores.append(SARIsent(src, pred, references))
     for fis in files:
