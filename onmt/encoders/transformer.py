@@ -85,7 +85,7 @@ class TransformerEncoder(EncoderBase):
     def __init__(self, num_layers, d_model, heads, d_ff, dropout, embeddings,
                  max_relative_positions):
         super(TransformerEncoder, self).__init__()
-
+        self.enc_reshape=True
         self.embeddings = embeddings
         self.transformer = nn.ModuleList(
             [TransformerEncoderLayer(
