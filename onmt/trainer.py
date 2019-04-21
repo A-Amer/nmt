@@ -379,8 +379,10 @@ class Trainer(object):
                         loss = (self.gamma * rl_loss) - ((1 - self.gamma * loss))
 
                 if loss is not None:
-                    self.optim.backward(loss)
-
+                    for l in loss:
+                        l.backward()
+                    loss=None
+                    
                 total_stats.update(batch_stats)
                 report_stats.update(batch_stats)
 
