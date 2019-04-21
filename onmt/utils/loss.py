@@ -122,7 +122,7 @@ class LossComputeBase(nn.Module):
             return loss / float(normalization), stats,preds
         batch_stats = onmt.utils.Statistics()
         for shard in shards(shard_state, shard_size):
-            loss, stats = self._compute_loss(batch, **shard,valid=valid,prediction_type=prediction_type)
+            loss, stats,preds = self._compute_loss(batch, **shard,valid=valid,prediction_type=prediction_type)
             loss.div(float(normalization)).backward()
             batch_stats.update(stats)
         return None, batch_stats
