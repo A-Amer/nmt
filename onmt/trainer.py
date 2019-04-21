@@ -1,19 +1,73 @@
-"""
-    This is the loadable seq2seq trainer library that is
-    in charge of training details, loss compute, and statistics.
-    See train.py for a use case of this library.
-
-    Note: To make this a general library, we implement *only*
-          mechanism things here(i.e. what to do), and leave the strategy
-          things to users(i.e. how to do it). Also see train.py(one of the
-          users of this library) for the strategy things we do.
-"""
 
 import torch
 import traceback
 import onmt.utils
 from onmt.utils.logging import logger
+from onmt.utils.sari import SARIsent
 
+
+class Scorer:
+    def __init__(self, rouge_weight, sari_weight):
+        import rouge as R
+        self.rouge = R.Rouge(stats=["f"], metrics=[
+            "rouge-1", "rouge-2", "rouge-l"])
+        self.r_weight = rouge_weight
+        self.s_weight = sari_weight
+
+    def score_rouge(self, hyps, refs):
+        scores = self.rouge.get_scores(hyps, refs)
+        # NOTE: here we use score = r1 * r2 * rl
+        #       I'm not sure how relevant it is
+        metric_weight = {"rouge-1": 0, "rouge-2": 0, "rouge-l": 1}
+
+        scores = [sum([seq[metric]['f'] * metric_weight[metric]
+                       for metric in seq.keys()])
+                  for seq in scores]
+        return scores
+
+    def score_sari(self, hyps, refs, srcs):
+        scores = []
+        for i in range(len(refs)):
+            scores.append(SARIsent(srcs[i], hyps[i], [refs[i]]))
+        #consider adding reverse sari [beta*SARIsent(srcs[i], refs[i], [hyps[i]])+(1-beta)*scores] where beta=0.1
+        return scores
+
+    def tens2sen(self, t):
+        sentences = []
+        for s in t:
+            sentence = []
+            for wt in s:
+                word = wt.data[0]
+                if word in [0, 3]:
+                    break
+                sentence += [str(word)]
+            if len(sentence) == 0:
+                # NOTE just a trick not to score empty sentence
+                #      this has not consequence
+                sentence = ["0", "0", "0"]
+            sentences += [" ".join(sentence)]
+        return sentences
+
+    def score(self, sample_pred, greedy_pred, tgt, src):
+        """
+            sample_pred: LongTensor [bs x len]
+            greedy_pred: LongTensor [bs x len]
+            tgt: LongTensor [bs x len]
+        """
+
+        s_hyps = self.tens2sen(sample_pred)
+        g_hyps = self.tens2sen(greedy_pred)
+        refs = self.tens2sen(tgt)
+        srcs = self.tens2sen(src)
+        sample_scores = self.score_rouge(s_hyps, refs) * self.r_weight + self.score_sari(s_hyps, refs,
+                                                                                         srcs) * self.s_weight
+        greedy_scores = self.score_rouge(g_hyps, refs) * self.r_weight + self.score_sari(g_hyps, refs,
+                                                                                         srcs) * self.s_weight
+
+        ts = torch.Tensor(sample_scores)
+        gs = torch.Tensor(greedy_scores)
+
+        return (gs - ts)
 
 def build_trainer(opt, device_id, model, fields, optim, model_saver=None):
     """
@@ -49,7 +103,13 @@ def build_trainer(opt, device_id, model, fields, optim, model_saver=None):
     earlystopper = onmt.utils.EarlyStopping(
         opt.early_stopping, scorers=onmt.utils.scorers_from_opts(opt)) \
         if opt.early_stopping > 0 else None
-
+    rl=opt.rl
+    rl_only=opt.rl_only
+    gamma=opt.gamma
+    if rl:
+        scorer=Scorer(opt.rouge_weight,opt.sari_weight)
+    else:
+        scorer=None
     report_manager = onmt.utils.build_report_manager(opt)
     trainer = onmt.Trainer(model, train_loss, valid_loss, optim,
                            shard_size, norm_method,
@@ -58,7 +118,8 @@ def build_trainer(opt, device_id, model, fields, optim, model_saver=None):
                            gpu_verbose_level, report_manager,
                            model_saver=model_saver if gpu_rank == 0 else None,
                            model_dtype=opt.model_dtype,
-                           earlystopper=earlystopper)
+                           earlystopper=earlystopper,
+                           rl=rl,rl_only=rl_only,gamma=gamma,scorer=scorer)
     return trainer
 
 
@@ -85,6 +146,9 @@ class Trainer(object):
             model_saver(:obj:`onmt.models.ModelSaverBase`): the saver is
                 used to save a checkpoint.
                 Thus nothing will be saved if this parameter is None
+            rl(bool):Whether to use reinforcement learning
+            rl_only(bool):Wheter to use reinforcement loss only or apply equation (gamma*rl_loss)+(gamma-1)*ml_loss
+            gamma(float):gama used in loss calculation
     """
 
     def __init__(self, model, train_loss, valid_loss, optim,
@@ -94,7 +158,8 @@ class Trainer(object):
                  n_gpu=1, gpu_rank=1,
                  gpu_verbose_level=0, report_manager=None, model_saver=None,
                 model_dtype='fp32',
-                 earlystopper=None):
+                 earlystopper=None,
+                 rl=False,rl_only=True,gamma=0.9,scorer=None):
         # Basic attributes.
         self.model = model
         self.train_loss = train_loss
@@ -112,7 +177,10 @@ class Trainer(object):
         self.model_saver = model_saver
         self.model_dtype = model_dtype
         self.earlystopper = earlystopper
-
+        self.rl=rl
+        self.rl_only=rl_only
+        self.gamma=gamma
+        self.scorer=scorer
         for i in range(len(self.accum_count_l)):
             assert self.accum_count_l[i] > 0
 
@@ -256,7 +324,7 @@ class Trainer(object):
                 outputs, attns = valid_model(src, tgt, src_lengths)
 
                 # Compute loss.
-                _, batch_stats = self.valid_loss(batch, outputs, attns,valid=True)
+                _, batch_stats,_ = self.valid_loss(batch, outputs, attns,valid=True)
 
                 # Update statistics.
                 stats.update(batch_stats)
@@ -267,8 +335,7 @@ class Trainer(object):
 
     def _gradient_accumulation(self, true_batches, normalization, total_stats,
                                report_stats):
-        if self.accum_count > 1:
-            self.optim.zero_grad()
+
 
         for k, batch in enumerate(true_batches):
             target_size = batch.tgt.size(0)
@@ -278,24 +345,38 @@ class Trainer(object):
             if src_lengths is not None:
                 report_stats.n_src_words += src_lengths.sum().item()
 
-            bptt = False
             # 1. Create truncated target.
             tgt = batch.tgt
 
             # 2. F-prop all but generator.
-            if self.accum_count == 1:
-                self.optim.zero_grad()
-            outputs, attns = self.model(src, tgt, src_lengths, bptt=bptt)
-            bptt = True
+            self.optim.zero_grad()
+            outputs, attns = self.model(src, tgt, src_lengths, bptt=False)
 
             # 3. Compute loss.
             try:
-                loss, batch_stats = self.train_loss(
+                loss, batch_stats,preds = self.train_loss(
                     batch,
                     outputs,
                     attns,
                     normalization=normalization,
                     shard_size=self.shard_size)
+                if self.rl:
+                    loss_sample, _, preds_sample = self.train_loss(
+                        batch,
+                        outputs,
+                        attns,
+                        normalization=normalization,
+                        shard_size=self.shard_size,prediction_type="sample")
+                    sample_preds = torch.stack(preds_sample, 1)
+                    greedy_preds = torch.stack(preds, 1)
+                    metric = self.scorer.score(sample_preds, greedy_preds, tgt[1:].t(),src)
+                    if self.n_gpu>0:
+                        metric = metric.cuda()
+                    rl_loss = (loss_sample * metric).sum()
+                    if self.rl_only:
+                        loss = rl_loss
+                    else:
+                        loss = (self.gamma * rl_loss) - ((1 - self.gamma * loss))
 
                 if loss is not None:
                     self.optim.backward(loss)
@@ -318,10 +399,7 @@ class Trainer(object):
             if self.model.decoder.state is not None:
                 self.model.decoder.detach_state()
 
-        # in case of multi step gradient accumulation,
-        # update only after accum batches
-        if self.accum_count > 1:
-            self.optim.step()
+
 
     def _start_report_manager(self, start_time=None):
         """

@@ -98,7 +98,7 @@ class LossComputeBase(nn.Module):
                  output,
                  attns,
                  normalization=1.0,
-                 shard_size=0, valid=False):
+                 shard_size=0, valid=False,prediction_type="greedy"):
         """Compute the forward loss, possibly in shards in which case this
         method also runs the backward pass and returns ``None`` as the loss
         value.
@@ -118,14 +118,8 @@ class LossComputeBase(nn.Module):
         trunc_range = (0, batch.tgt.size(0))
         shard_state = self._make_shard_state(batch, output, trunc_range, attns)
         if shard_size == 0:
-            loss, stats = self._compute_loss(batch, **shard_state,valid=valid)
-            return loss / float(normalization), stats
-        batch_stats = onmt.utils.Statistics()
-        for shard in shards(shard_state, shard_size):
-            loss, stats = self._compute_loss(batch, **shard,valid=valid)
-            loss.div(float(normalization)).backward()
-            batch_stats.update(stats)
-        return None, batch_stats
+            loss, stats,preds = self._compute_loss(batch, **shard_state,valid=valid,prediction_type=prediction_type)
+            return loss / float(normalization), stats,preds
 
     def _stats(self, loss, scores, target, valid=False):
         """
@@ -167,24 +161,33 @@ class NMTLossCompute(LossComputeBase):
             "target": batch.tgt[range_[0] + 1: range_[1], :, 0],
         }
 
-    def _compute_loss(self, batch, output, target, valid=False):
+    def _compute_loss(self, batch, output, target, valid=False,prediction_type="greedy"):
         bottled_output = self._bottle(output)
+
+        scores = self.generator(bottled_output)
+        gtruth = target.view(-1)
+        if prediction_type == "greedy":
+            _, pred = scores.max(1)
+            pred = torch.autograd.Variable(pred, requires_grad=False)
+            loss = self.criterion(scores,  gtruth)
+            loss_data = loss.data.clone()
+        elif prediction_type == "sample":
+            d = torch.distributions.Categorical(
+                scores[:, :len(self.tgt_vocab)])
+            pred = torch.autograd.Variable(d.sample(), requires_grad=False) * target
+            loss = self.criterion(scores,  pred)
+            loss_data = loss.sum().data
+        else:
+            raise ValueError("Incorrect prediction_type %s" % prediction_type)
+        stats = self._stats(loss_data, scores, gtruth,valid=valid)
         if valid:
           pred_file=open("pred.txt",'a')
           for i in range(output.size()[1]):
-            scores = self.generator(output[:,i,:])
-            pred = scores.max(1)[1]
             out_tokens=_build_target_tokens(self.tgt_vocab, pred,self.eos_token)
             sentence=' '.join(word for word in out_tokens)
             pred_file.write(sentence+'\n')
           pred_file.close()
-        scores = self.generator(bottled_output)
-        gtruth = target.view(-1)
-
-        loss = self.criterion(scores, gtruth)
-        stats = self._stats(loss.clone(), scores, gtruth,valid=valid)
-
-        return loss, stats
+        return loss, stats,pred
 
 
 def filter_shard_state(state, shard_size=None):

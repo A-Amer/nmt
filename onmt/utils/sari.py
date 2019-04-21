@@ -2,13 +2,6 @@ from __future__ import division
 from collections import Counter
 
 
-def ReadInFile(filename):
-    with open(filename) as f:
-        lines = f.readlines()
-        lines = [x.strip() for x in lines]
-    return lines
-
-
 def SARIngram(sgrams, cgrams, rgramslist, numref):
     rgramsall = [rgram for rgrams in rgramslist for rgram in rgrams]
     rgramcounter = Counter(rgramsall)

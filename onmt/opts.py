@@ -277,7 +277,17 @@ def train_opts(parser):
                    "reproducibility.")
     group.add('--shuffle', '-shuffle',  action='store_true',
                help="Shuffle data")
-
+    #Reinforcement learning options
+    group.add('--gamma', '-gamma', type=float, default=0.1,
+              help="gamma for reinforcement learning loss calculation")
+    group.add('--rl', '-rl', action='store_true',
+              help="Use reinforcement learning in training")
+    group.add('--rl_only', '-rl_only', action='store_true',
+              help="Use reinforcement learning loss only in backpropagation")
+    group.add('--rouge_weight', '-rouge_weight', type=float, default=0.0,
+              help="weight assigned for rouge scores in the scoring function")
+    group.add('--sari_weight', '-sari_weight', type=float, default=1.0,
+              help="weight assigned for sari scores in the scoring function")
     # Init options
     group = parser.add_argument_group('Initialization')
     group.add('--param_init', '-param_init', type=float, default=0.1,
