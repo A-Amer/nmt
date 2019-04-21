@@ -119,13 +119,16 @@ class LossComputeBase(nn.Module):
         shard_state = self._make_shard_state(batch, output, trunc_range, attns)
         if shard_size == 0:
             loss, stats,preds = self._compute_loss(batch, **shard_state,valid=valid,prediction_type=prediction_type)
-            return loss / float(normalization), stats,preds
+            return [loss.div(float(normalization))], stats,preds
         batch_stats = onmt.utils.Statistics()
+        losses=[]
+        preds=[]
         for shard in shards(shard_state, shard_size):
-            loss, stats,preds = self._compute_loss(batch, **shard,valid=valid,prediction_type=prediction_type)
-            loss.div(float(normalization)).backward()
+            loss, stats,pred = self._compute_loss(batch, **shard,valid=valid,prediction_type=prediction_type)
+            preds.append(pred)
+            losses.append(loss.div(float(normalization)))
             batch_stats.update(stats)
-        return None, batch_stats
+        return losses, batch_stats,preds
 
     def _stats(self, loss, scores, target, valid=False):
         """
