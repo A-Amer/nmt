@@ -7,12 +7,13 @@ from onmt.utils.sari import SARIsent
 
 
 class Scorer:
-    def __init__(self, rouge_weight, sari_weight):
+    def __init__(self, rouge_weight, sari_weight,eos_idx):
         import rouge as R
         self.rouge = R.Rouge(stats=["f"], metrics=[
             "rouge-1", "rouge-2", "rouge-l"])
         self.r_weight = rouge_weight
         self.s_weight = sari_weight
+        self.eos_idx=eos_idx
 
     def score_rouge(self, hyps, refs):
         scores = self.rouge.get_scores(hyps, refs)
@@ -106,7 +107,7 @@ def build_trainer(opt, device_id, model, fields, optim, model_saver=None):
     rl_only=opt.rl_only
     gamma=opt.gamma
     if rl:
-        scorer=Scorer(opt.rouge_weight,opt.sari_weight)
+        scorer=Scorer(opt.rouge_weight,opt.sari_weight,tgt_field.vocab.stoi[tgt_field.eos_token])
     else:
         scorer=None
     report_manager = onmt.utils.build_report_manager(opt)
