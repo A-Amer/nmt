@@ -204,14 +204,13 @@ class NMTLossCompute(LossComputeBase):
             loss = self.criterion(scores,  gtruth)
             loss_data = loss.data.clone()
         elif prediction_type == "sample":
-            print(scores.size())
-            print(output.size())
             logits=self._unbottle(scores, output.size(1))
             dist = torch.distributions.Multinomial(
                 logits=logits, total_count=1)
             topk_ids = torch.argmax(dist.sample(), dim=1, keepdim=True)
             topk_scores = logits.gather(dim=1, index=topk_ids)
-
+            print(topk_scores.size())
+            print(gtruth.size())
             pred = topk_scores * gtruth
             loss = self.criterion(scores,  pred)
             loss_data = loss.sum().data
