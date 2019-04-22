@@ -380,8 +380,7 @@ class Trainer(object):
                         loss = rl_loss
                     else:
                         loss = (self.gamma * rl_loss) - ((1 - self.gamma * loss))
-                    for l in loss:
-                        self.optim.backward(l)
+                    print(loss)
                 else:
                     loss, batch_stats, preds = self.train_loss(
                         batch,
