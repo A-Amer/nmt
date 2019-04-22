@@ -207,12 +207,14 @@ class NMTLossCompute(LossComputeBase):
             inputs_t = target[0, :]
             continue_gen = (inputs_t.ne(self.tgt_vocab.stoi[self.eos_token]) * inputs_t.ne(self.padding_idx))
             tgt_t = continue_gen.long()
+            print(tgt_t.size())
             gtruth=tgt_t.view(-1)
             d = torch.distributions.Categorical(
                 scores[:, :len(self.tgt_vocab)])
             sample=torch.autograd.Variable(d.sample(), requires_grad=False)
+            print(sample.size())
             pred = sample * gtruth
-            loss = self.criterion(scores[:, :len(self.tgt_vocab)],  pred)
+            loss = self.criterion(scores,  pred)
             loss_data = loss.sum().data
         else:
             raise ValueError("Incorrect prediction_type %s" % prediction_type)
