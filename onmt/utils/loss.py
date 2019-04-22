@@ -207,10 +207,8 @@ class NMTLossCompute(LossComputeBase):
             logits=scores
             dist = torch.distributions.Multinomial(
                 logits=logits, total_count=1)
-            topk_ids = torch.argmax(dist.sample(), dim=1, keepdim=True)
-            topk_scores = logits.gather(dim=1, index=topk_ids).view(-1)
-            
-            pred = topk_scores 
+            topk_ids = torch.argmax(dist.sample(), dim=1, keepdim=True).view(-1)
+            pred = topk_ids
             loss = self.criterion(scores,  pred)
             loss_data = loss.sum().data
         else:
