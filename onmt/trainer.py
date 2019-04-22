@@ -369,8 +369,8 @@ class Trainer(object):
                         normalization=normalization,
                         shard_size=self.shard_size,prediction_type="sample")
                     metric = self.scorer.score(preds_sample[0], preds[0], tgt[1:].squeeze(2).t(),src.squeeze(2).t())
-                    loss_sample=torch.Tensor(loss_sample)
-                    loss=torch.Tensor(loss)
+                    loss_sample=torch.Tensor(loss_sample[0])
+                    loss=torch.Tensor(loss[0])
                     if self.n_gpu>0:
                         metric = metric.cuda()
                         loss_sample=loss_sample.cuda()
