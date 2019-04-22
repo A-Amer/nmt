@@ -5,7 +5,7 @@ This includes: LossComputeBase and the standard NMTLossCompute, and
 from __future__ import division
 import torch
 import torch.nn as nn
-
+import torch.nn.functional as F
 import onmt
 
 def _build_target_tokens(vocab, pred,eos_token):
@@ -146,7 +146,7 @@ class LossComputeBase(nn.Module):
         batch_stats = onmt.utils.Statistics()
         losses=[]
         preds=[]
-        for shard in shards(shard_state, shard_size,eval_only=True):
+        for shard in shards_no_backprop(shard_state, shard_size):
             loss, stats,pred = self._compute_loss(batch, **shard,valid=valid,prediction_type=prediction_type)
             preds.append(pred)
             losses.append(loss.div(float(normalization)))
@@ -220,7 +220,34 @@ class NMTLossCompute(LossComputeBase):
             pred_file.write(sentence+'\n')
           pred_file.close()
         return loss, stats,pred
+class LabelSmoothingLoss(nn.Module):
+    """
+    With label smoothing,
+    KL-divergence between q_{smoothed ground truth prob.}(w)
+    and p_{prob. computed by model}(w) is minimized.
+    """
+    def __init__(self, label_smoothing, tgt_vocab_size, ignore_index=-100):
+        assert 0.0 < label_smoothing <= 1.0
+        self.ignore_index = ignore_index
+        super(LabelSmoothingLoss, self).__init__()
 
+        smoothing_value = label_smoothing / (tgt_vocab_size - 2)
+        one_hot = torch.full((tgt_vocab_size,), smoothing_value)
+        one_hot[self.ignore_index] = 0
+        self.register_buffer('one_hot', one_hot.unsqueeze(0))
+
+        self.confidence = 1.0 - label_smoothing
+
+    def forward(self, output, target):
+        """
+        output (FloatTensor): batch_size x n_classes
+        target (LongTensor): batch_size
+        """
+        model_prob = self.one_hot.repeat(target.size(0), 1)
+        model_prob.scatter_(1, target.unsqueeze(1), self.confidence)
+        model_prob.masked_fill_((target == self.ignore_index).unsqueeze(1), 0)
+
+        return F.kl_div(output, model_prob, reduction='sum')
 
 def filter_shard_state(state, shard_size=None):
     for k, v in state.items():
@@ -285,3 +312,29 @@ def shards(state, shard_size, eval_only=False):
                                      [v_chunk.grad for v_chunk in v_split]))
         inputs, grads = zip(*variables)
         torch.autograd.backward(inputs, grads)
+
+def shards_no_backprop(state, shard_size):
+    """
+    Args:
+        state: A dictionary which corresponds to the output of
+               *LossCompute._make_shard_state(). The values for
+               those keys are Tensor-like or None.
+        shard_size: The maximum size of the shards yielded by the model.
+
+
+    Yields:
+        Each yielded shard is a dict.
+
+    """
+
+    # non_none: the subdict of the state dictionary where the values
+    # are not None.
+    non_none = dict(filter_shard_state(state, shard_size))
+
+
+    keys, values = zip(*((k, [v_chunk for v_chunk in v_split])
+                         for k, (_, v_split) in non_none.items()))
+
+
+    for shard_tensors in zip(*values):
+        yield dict(zip(keys, shard_tensors))
