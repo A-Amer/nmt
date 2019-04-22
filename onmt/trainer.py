@@ -37,10 +37,9 @@ class Scorer:
         for s in t:
             sentence = []
             for wt in s:
-                word = wt.data[0]
-                if word in [0, 3]:
+                if wt in [self.eos_idx]:
                     break
-                sentence += [str(word)]
+                sentence += [str(wt)]
             if len(sentence) == 0:
                 # NOTE just a trick not to score empty sentence
                 #      this has not consequence
