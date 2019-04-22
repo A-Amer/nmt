@@ -217,6 +217,7 @@ class NMTLossCompute(LossComputeBase):
         pred=pred.view(target.size(1),target.size(0))
         if valid:
           pred_file=open("pred.txt",'a')
+          pred = scores.max(1)[1]
           for i in range(output.size()[1]):
             out_tokens=_build_target_tokens(self.tgt_vocab, pred,self.eos_token)
             sentence=' '.join(word for word in out_tokens)
