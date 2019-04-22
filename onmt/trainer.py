@@ -367,8 +367,6 @@ class Trainer(object):
                         attns,
                         normalization=normalization,
                         shard_size=self.shard_size,prediction_type="sample")
-                    print(preds_sample.size())
-                    print(preds.size())
                     metric = self.scorer.score(preds_sample, preds, tgt[1:].squeeze(2).t(),src.squeeze(2).t())
                     if self.n_gpu>0:
                         metric = metric.cuda()
