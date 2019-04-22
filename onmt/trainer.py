@@ -372,7 +372,7 @@ class Trainer(object):
                         attns,
                         normalization=normalization,
                         shard_size=self.shard_size,prediction_type="sample")
-                    metric = self.scorer.score(preds_sample, preds, tgt[1:].squeeze(2).t(),src.squeeze(2).t())
+                    metric = self.scorer.score(preds_sample[0], preds[0], tgt[1:].squeeze(2).t(),src.squeeze(2).t())
                     if self.n_gpu>0:
                         metric = metric.cuda()
                     rl_loss = (loss_sample * metric).sum()
