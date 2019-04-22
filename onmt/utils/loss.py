@@ -214,6 +214,7 @@ class NMTLossCompute(LossComputeBase):
         else:
             raise ValueError("Incorrect prediction_type %s" % prediction_type)
         stats = self._stats(loss_data, scores, gtruth)
+        pred=pred.view(target.size(1),target.size(0))
         if valid:
           pred_file=open("pred.txt",'a')
           for i in range(output.size()[1]):
