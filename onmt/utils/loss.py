@@ -204,6 +204,10 @@ class NMTLossCompute(LossComputeBase):
             loss = self.criterion(scores,  gtruth)
             loss_data = loss.data.clone()
         elif prediction_type == "sample":
+            inputs_t = target[0, :]
+            continue_gen = (inputs_t.ne(self.eos_token) * inputs_t.ne(0))
+            tgt_t = continue_gen.long()
+            gtruth=tgt_t.view(-1)
             d = torch.distributions.Categorical(
                 scores[:, :len(self.tgt_vocab)])
             sample=torch.autograd.Variable(d.sample(), requires_grad=False)
