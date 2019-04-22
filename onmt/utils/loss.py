@@ -98,7 +98,7 @@ class LossComputeBase(nn.Module):
                  output,
                  attns,
                  normalization=1.0,
-                 shard_size=0, valid=False,prediction_type="greedy"):
+                 shard_size=0, valid=False):
         """Compute the forward loss, possibly in shards in which case this
         method also runs the backward pass and returns ``None`` as the loss
         value.
@@ -118,19 +118,42 @@ class LossComputeBase(nn.Module):
         trunc_range = (0, batch.tgt.size(0))
         shard_state = self._make_shard_state(batch, output, trunc_range, attns)
         if shard_size == 0:
+            loss, stats,preds = self._compute_loss(batch, **shard_state,valid=valid,prediction_type="greedy")
+            return [loss.div(float(normalization))], stats,preds
+        batch_stats = onmt.utils.Statistics()
+
+        preds=[]
+        for shard in shards(shard_state, shard_size):
+            loss, stats,pred = self._compute_loss(batch, **shard,valid=valid,prediction_type="greedy")
+            preds.append(pred)
+            loss.div(float(normalization)).backward()
+            batch_stats.update(stats)
+        return None, batch_stats,preds
+
+    def get_losses(self,
+                 batch,
+                 output,
+                 attns,
+                 normalization=1.0,
+                 shard_size=0, valid=False
+                   ,prediction_type="greedy"):
+
+        trunc_range = (0, batch.tgt.size(0))
+        shard_state = self._make_shard_state(batch, output, trunc_range, attns)
+        if shard_size == 0:
             loss, stats,preds = self._compute_loss(batch, **shard_state,valid=valid,prediction_type=prediction_type)
             return [loss.div(float(normalization))], stats,preds
         batch_stats = onmt.utils.Statistics()
         losses=[]
         preds=[]
-        for shard in shards(shard_state, shard_size):
+        for shard in shards(shard_state, shard_size,eval_only=True):
             loss, stats,pred = self._compute_loss(batch, **shard,valid=valid,prediction_type=prediction_type)
             preds.append(pred)
             losses.append(loss.div(float(normalization)))
             batch_stats.update(stats)
         return losses, batch_stats,preds
 
-    def _stats(self, loss, scores, target, valid=False):
+    def _stats(self, loss, scores, target):
         """
         Args:
             loss (:obj:`FloatTensor`): the loss computed by the loss criterion.

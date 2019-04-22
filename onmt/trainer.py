@@ -354,14 +354,15 @@ class Trainer(object):
 
             # 3. Compute loss.
             try:
-                loss, batch_stats,preds = self.train_loss(
-                    batch,
-                    outputs,
-                    attns,
-                    normalization=normalization,
-                    shard_size=self.shard_size)
+
                 if self.rl:
-                    loss_sample, _, preds_sample = self.train_loss(
+                    loss, batch_stats, preds = self.train_loss.get_losses(
+                        batch,
+                        outputs,
+                        attns,
+                        normalization=normalization,
+                        shard_size=self.shard_size)
+                    loss_sample, _, preds_sample = self.train_loss.get_losses(
                         batch,
                         outputs,
                         attns,
@@ -377,11 +378,18 @@ class Trainer(object):
                         loss = rl_loss
                     else:
                         loss = (self.gamma * rl_loss) - ((1 - self.gamma * loss))
+                    for l in loss:
+                        self.optim.backward(l)
+                else:
+                    loss, batch_stats, preds = self.train_loss(
+                        batch,
+                        outputs,
+                        attns,
+                        normalization=normalization,
+                        shard_size=self.shard_size)
 
                 if loss is not None:
-                    for l in loss:
-                        l.backward()
-                    loss=None
+                    self.optim.backward(loss)
                     
                 total_stats.update(batch_stats)
                 report_stats.update(batch_stats)
