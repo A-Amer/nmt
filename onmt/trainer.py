@@ -59,6 +59,10 @@ class Scorer:
         g_hyps = self.tens2sen(greedy_pred)
         refs = self.tens2sen(tgt)
         srcs = self.tens2sen(src)
+        print(len(s_hyps))
+        print(len(g_hyps))
+        print(len(refs))
+        print(len(srcs))
         sample_scores = self.score_rouge(s_hyps, refs) * self.r_weight + self.score_sari(s_hyps, refs,
                                                                                          srcs) * self.s_weight
         greedy_scores = self.score_rouge(g_hyps, refs) * self.r_weight + self.score_sari(g_hyps, refs,
