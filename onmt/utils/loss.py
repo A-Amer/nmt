@@ -148,7 +148,7 @@ class LossComputeBase(nn.Module):
         preds=torch.ones((1,50),dtype=torch.long)
         for shard in shards_no_backprop(shard_state, shard_size):
             loss, stats,pred = self._compute_loss(batch, **shard,valid=valid,prediction_type=prediction_type)
-            preds=torch.cat((preds,pred.unsqueeze(0)))
+            preds=torch.cat((preds,pred.unsqueeze(0)),1)
             losses.append(loss.div(float(normalization)))
             batch_stats.update(stats)
         return losses, batch_stats,preds[1:]
