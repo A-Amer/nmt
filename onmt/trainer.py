@@ -4,7 +4,7 @@ import traceback
 import onmt.utils
 from onmt.utils.logging import logger
 from onmt.utils.sari import SARIsent
-
+import numpy as np
 
 class Scorer:
     def __init__(self, rouge_weight, sari_weight,eos_idx):
@@ -24,14 +24,14 @@ class Scorer:
         scores = [sum([seq[metric]['f'] * metric_weight[metric]
                        for metric in seq.keys()])
                   for seq in scores]
-        return scores
+        return np.array(scores)
 
     def score_sari(self, hyps, refs, srcs):
         scores = []
         for i in range(len(refs)):
             scores.append(SARIsent(srcs[i], hyps[i], [refs[i]]))
         #consider adding reverse sari [beta*SARIsent(srcs[i], refs[i], [hyps[i]])+(1-beta)*scores] where beta=0.1
-        return scores
+        return np.array(scores)
 
     def tens2sen(self, t):
         sentences = []
@@ -59,10 +59,6 @@ class Scorer:
         g_hyps = self.tens2sen(greedy_pred)
         refs = self.tens2sen(tgt)
         srcs = self.tens2sen(src)
-        print(len(s_hyps))
-        print(len(g_hyps))
-        print(len(refs))
-        print(len(srcs))
         sample_scores = self.score_rouge(s_hyps, refs) * self.r_weight + self.score_sari(s_hyps, refs,
                                                                                          srcs) * self.s_weight
         greedy_scores = self.score_rouge(g_hyps, refs) * self.r_weight + self.score_sari(g_hyps, refs,
