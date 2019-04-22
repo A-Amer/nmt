@@ -370,6 +370,7 @@ class Trainer(object):
                         shard_size=self.shard_size,prediction_type="sample")
                     sample_preds = torch.stack(preds_sample, 1)
                     greedy_preds = torch.stack(preds, 1)
+                    print(tgt[1:].size())
                     metric = self.scorer.score(sample_preds, greedy_preds, tgt[1:].t(),src)
                     if self.n_gpu>0:
                         metric = metric.cuda()
