@@ -206,7 +206,10 @@ class NMTLossCompute(LossComputeBase):
         elif prediction_type == "sample":
             d = torch.distributions.Categorical(
                 scores[:, :len(self.tgt_vocab)])
-            pred = torch.autograd.Variable(d.sample(), requires_grad=False) * target
+            sample=torch.autograd.Variable(d.sample(), requires_grad=False)
+            print(sample.size())
+            print(gtruth.size())
+            pred = sample * gtruth
             loss = self.criterion(scores,  pred)
             loss_data = loss.sum().data
         else:
