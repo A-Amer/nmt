@@ -145,10 +145,10 @@ class LossComputeBase(nn.Module):
             return [loss.div(float(normalization))], stats,preds
         batch_stats = onmt.utils.Statistics()
         losses=[]
-        preds=torch.ones((50),dtype=torch.long)
+        preds=[]
         for shard in shards_no_backprop(shard_state, shard_size):
             loss, stats,pred = self._compute_loss(batch, **shard,valid=valid,prediction_type=prediction_type)
-            preds=torch.cat((preds,pred))
+            preds.append(pred)
             losses.append(loss.div(float(normalization)))
             batch_stats.update(stats)
         return losses, batch_stats,preds
