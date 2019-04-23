@@ -25,7 +25,11 @@ class Scorer:
                        for metric in seq.keys()])
                   for seq in scores]
         return np.array(scores)
-
+    def score_bleu(self, hyps, refs):
+        scores = []
+        for i in range(len(refs)):
+            scores.append(sentence_bleu([refs[i].split()],hyps[i].split()))
+        return np.array(scores)        
     def score_sari(self, hyps, refs, srcs):
         scores = []
         for i in range(len(refs)):
