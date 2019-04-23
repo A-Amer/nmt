@@ -19,7 +19,7 @@ class Scorer:
         scores = self.rouge.get_scores(hyps, refs)
         # NOTE: here we use score = r1 * r2 * rl
         #       I'm not sure how relevant it is
-        metric_weight = {"rouge-1": 0, "rouge-2": 0, "rouge-l": 1}
+        metric_weight = {"rouge-1": 0.75, "rouge-2": 0.25, "rouge-l": 0}
 
         scores = [sum([seq[metric]['f'] * metric_weight[metric]
                        for metric in seq.keys()])
