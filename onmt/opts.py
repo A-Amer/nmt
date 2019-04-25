@@ -278,7 +278,7 @@ def train_opts(parser):
     group.add('--shuffle', '-shuffle',  action='store_true',
                help="Shuffle data")
     #Reinforcement learning options
-    group.add('--gamma', '-gamma', type=float, default=0.1,
+    group.add('--gamma', '-gamma', type=float, default=0.9,
               help="gamma for reinforcement learning loss calculation")
     group.add('--rl', '-rl', action='store_true',
               help="Use reinforcement learning in training")
