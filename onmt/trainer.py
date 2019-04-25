@@ -384,7 +384,7 @@ class Trainer(object):
                     if self.rl_only:
                         loss = rl_loss
                     else:
-                        loss = (self.gamma * rl_loss) - ((1 - self.gamma) * loss)
+                        loss = (self.gamma * rl_loss) + ((1 - self.gamma) * loss)
                 else:
                     loss, batch_stats, preds = self.train_loss(
                         batch,
