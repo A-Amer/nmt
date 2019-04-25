@@ -7,19 +7,21 @@ from onmt.utils.sari import SARIsent
 import numpy as np
 
 class Scorer:
-    def __init__(self, rouge_weight, sari_weight,eos_idx):
+    def __init__(self, rouge_weight, sari_weight,bleu_weight,eos_idx,beta=0.1):
         import rouge as R
         self.rouge = R.Rouge(stats=["f"], metrics=[
             "rouge-1", "rouge-2", "rouge-l"])
         self.r_weight = rouge_weight
         self.s_weight = sari_weight
+        self.b_weight=bleu_weight
+        self.beta=beta
         self.eos_idx=eos_idx
 
     def score_rouge(self, hyps, refs):
         scores = self.rouge.get_scores(hyps, refs)
         # NOTE: here we use score = r1 * r2 * rl
         #       I'm not sure how relevant it is
-        metric_weight = {"rouge-1": 0.75, "rouge-2": 0.25, "rouge-l": 0}
+        metric_weight = {"rouge-1": 0, "rouge-2": 0, "rouge-l": 1}
 
         scores = [sum([seq[metric]['f'] * metric_weight[metric]
                        for metric in seq.keys()])
@@ -33,8 +35,7 @@ class Scorer:
     def score_sari(self, hyps, refs, srcs):
         scores = []
         for i in range(len(refs)):
-            scores.append(SARIsent(srcs[i], hyps[i], [refs[i]]))
-        #consider adding reverse sari [beta*SARIsent(srcs[i], refs[i], [hyps[i]])+(1-beta)*scores] where beta=0.1
+            scores.append((1-self.beta)*SARIsent(srcs[i], hyps[i], [refs[i]])+self.beta*SARIsent(srcs[i], refs[i], [hypss[i]]))
         return np.array(scores)
 
     def tens2sen(self, t):
@@ -63,10 +64,10 @@ class Scorer:
         g_hyps = self.tens2sen(greedy_pred)
         refs = self.tens2sen(tgt)
         srcs = self.tens2sen(src)
-        sample_scores = self.score_rouge(s_hyps, refs) * self.r_weight + self.score_sari(s_hyps, refs,
-                                                                                         srcs) * self.s_weight
-        greedy_scores = self.score_rouge(g_hyps, refs) * self.r_weight + self.score_sari(g_hyps, refs,
-                                                                                         srcs) * self.s_weight
+        sample_scores = self.score_rouge(s_hyps, refs) * self.r_weight+self.score_bleu(s_hyps, refs) * self.b_weight 
+        + self.score_sari(s_hyps, refs,srcs) * self.s_weight
+        greedy_scores = self.score_rouge(g_hyps, refs) * self.r_weight+ self.score_bleu(g_hyps, refs) * self.b_weight
+        + self.score_sari(g_hyps, refs, srcs) * self.s_weight
 
         ts = torch.Tensor(sample_scores)
         gs = torch.Tensor(greedy_scores)
@@ -111,7 +112,7 @@ def build_trainer(opt, device_id, model, fields, optim, model_saver=None):
     rl_only=opt.rl_only
     gamma=opt.gamma
     if rl:
-        scorer=Scorer(opt.rouge_weight,opt.sari_weight,tgt_field.vocab.stoi[tgt_field.eos_token])
+        scorer=Scorer(opt.rouge_weight,opt.sari_weight,opt.bleu_weight,tgt_field.vocab.stoi[tgt_field.eos_token])
     else:
         scorer=None
     report_manager = onmt.utils.build_report_manager(opt)
