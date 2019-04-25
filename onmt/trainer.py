@@ -17,6 +17,7 @@ class Scorer:
         self.b_weight=bleu_weight
         self.beta=beta
         self.eos_idx=eos_idx
+        self.smooth = SmoothingFunction()
 
     def score_rouge(self, hyps, refs):
         scores = self.rouge.get_scores(hyps, refs)
@@ -31,7 +32,7 @@ class Scorer:
     def score_bleu(self, hyps, refs):
         scores = []
         for i in range(len(refs)):
-            scores.append(sentence_bleu([refs[i].split()],hyps[i].split()))
+            scores.append(sentence_bleu([refs[i].split()],hyps[i].split(),smoothing_function=self.smooth.method3))
         return np.array(scores)        
     def score_sari(self, hyps, refs, srcs):
         scores = []
