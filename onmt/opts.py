@@ -288,6 +288,8 @@ def train_opts(parser):
               help="weight assigned for rouge scores in the scoring function")
     group.add('--sari_weight', '-sari_weight', type=float, default=1.0,
               help="weight assigned for sari scores in the scoring function")
+    group.add('--bleu_weight', '-bleu_weight', type=float, default=0.5,
+              help="weight assigned for sari scores in the scoring function")
     # Init options
     group = parser.add_argument_group('Initialization')
     group.add('--param_init', '-param_init', type=float, default=0.1,
