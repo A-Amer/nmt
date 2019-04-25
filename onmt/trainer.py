@@ -35,7 +35,7 @@ class Scorer:
     def score_sari(self, hyps, refs, srcs):
         scores = []
         for i in range(len(refs)):
-            scores.append((1-self.beta)*SARIsent(srcs[i], hyps[i], [refs[i]])+self.beta*SARIsent(srcs[i], refs[i], [hypss[i]]))
+            scores.append((1-self.beta)*SARIsent(srcs[i], hyps[i], [refs[i]])+self.beta*SARIsent(srcs[i], refs[i], [hyps[i]]))
         return np.array(scores)
 
     def tens2sen(self, t):
