@@ -8,14 +8,13 @@ from nltk.translate.bleu_score import sentence_bleu
 import numpy as np
 
 class Scorer:
-    def __init__(self, rouge_weight, sari_weight,bleu_weight,eos_idx,beta=0.1):
+    def __init__(self, rouge_weight, sari_weight,bleu_weight,eos_idx):
         import rouge as R
         self.rouge = R.Rouge(stats=["f"], metrics=[
             "rouge-1", "rouge-2", "rouge-l"])
         self.r_weight = rouge_weight
         self.s_weight = sari_weight
         self.b_weight=bleu_weight
-        self.beta=beta
         self.eos_idx=eos_idx
         self.smooth = SmoothingFunction()
 
@@ -37,7 +36,7 @@ class Scorer:
     def score_sari(self, hyps, refs, srcs):
         scores = []
         for i in range(len(refs)):
-            scores.append((1-self.beta)*SARIsent(srcs[i], hyps[i], [refs[i]])+self.beta*SARIsent(srcs[i], refs[i], [hyps[i]]))
+            scores.append(SARIsent(srcs[i], hyps[i], [refs[i]]))
         return np.array(scores)
 
     def tens2sen(self, t):
