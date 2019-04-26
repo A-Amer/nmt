@@ -4,7 +4,7 @@ import traceback
 import onmt.utils
 from onmt.utils.logging import logger
 from onmt.utils.sari import SARIsent
-from nltk.translate.bleu_score import sentence_bleu
+from nltk.translate.bleu_score import sentence_bleu,SmoothingFunctio
 import numpy as np
 
 class Scorer:
