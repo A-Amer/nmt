@@ -20,9 +20,7 @@ class Scorer:
 
     def score_rouge(self, hyps, refs):
         scores = self.rouge.get_scores(hyps, refs)
-        # NOTE: here we use score = r1 * r2 * rl
-        #       I'm not sure how relevant it is
-        metric_weight = {"rouge-1": 1, "rouge-2": 0, "rouge-l": 0}
+        metric_weight = {"rouge-1": 0.85, "rouge-2": 0.15, "rouge-l": 0}
 
         scores = [sum([seq[metric]['f'] * metric_weight[metric]
                        for metric in seq.keys()])
@@ -65,10 +63,8 @@ class Scorer:
         g_hyps = self.tens2sen(greedy_pred)
         refs = self.tens2sen(tgt)
         srcs = self.tens2sen(src)
-        sample_scores = self.score_rouge(s_hyps, refs) * self.r_weight+self.score_bleu(s_hyps, refs) * self.b_weight 
-        + self.score_sari(s_hyps, refs,srcs) * self.s_weight
-        greedy_scores = self.score_rouge(g_hyps, refs) * self.r_weight+ self.score_bleu(g_hyps, refs) * self.b_weight
-        + self.score_sari(g_hyps, refs, srcs) * self.s_weight
+        sample_scores = self.score_rouge(s_hyps, refs) * self.r_weight+ self.score_sari(s_hyps, refs,srcs) * self.s_weight
+        greedy_scores = self.score_rouge(g_hyps, refs) * self.r_weight+ self.score_sari(g_hyps, refs, srcs) * self.s_weight
 
         ts = torch.Tensor(sample_scores)
         gs = torch.Tensor(greedy_scores)
