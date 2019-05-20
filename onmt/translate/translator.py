@@ -8,10 +8,6 @@ import time
 from itertools import count
 
 import torch
-import matplotlib.pyplot as plt
-plt.switch_backend('agg')
-import matplotlib.ticker as ticker
-import numpy as np
 
 import onmt.model_builder
 import onmt.translate.beam
@@ -401,7 +397,6 @@ class Translator(object):
                             "{:*>10.7f} ", "{:>10.7f} ", max_index)
                         output += row_format.format(word, *row) + '\n'
                         row_format = "{:>10.10} " + "{:>10.7f} " * len(srcs)
-                    plt.matshow(output.numpy())
                     if self.logger:
                         self.logger.info(output)
                     else:
